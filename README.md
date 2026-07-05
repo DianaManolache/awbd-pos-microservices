@@ -1,6 +1,6 @@
-# 🧾 POS – Casa de Marcat (Spring Boot)
+# POS – Casa de Marcat (Spring Boot)
 
-## 📌 Descriere generală
+## Descriere generală
 Acest proiect reprezintă o aplicație backend de tip **POS (Point of Sale)** – casă de marcat – dezvoltată în **Java cu Spring Boot**, având ca scop gestionarea vânzărilor, produselor, clienților, bonurilor fiscale și plăților.
 
 Aplicația implementează un flux complet de vânzare:
@@ -12,7 +12,7 @@ Aplicația implementează un flux complet de vânzare:
 
 ---
 
-## 🧠 Business Requirements
+## Business Requirements
 Aplicația respectă următoarele cerințe de business:
 
 1. Un produs aparține unei categorii și are preț și stoc.
@@ -28,7 +28,7 @@ Aplicația respectă următoarele cerințe de business:
 
 ---
 
-## 🔄 Flow principal (Vânzare)
+## Flow principal (Vânzare)
 
 1. Se creează categorii și produse
 2. Se creează client și vânzător
@@ -42,26 +42,43 @@ Aplicația respectă următoarele cerințe de business:
 
 ---
 
-## 🗂️ Diagrama ERD
+## Diagrama ER
 Diagrama Entitate–Relație descrie structura bazei de date și relațiile dintre entități.
 
-📌 **ERD-ul se găsește aici:**  
-![ERD Diagram](ERD_POS.png)
+```mermaid
+erDiagram
+    CATEGORIE ||--o{ PRODUS : "contine"
+    PRODUS }o--o{ PROMOTIE : "participa la"
+    CLIENT ||--o{ BON : "plaseaza"
+    VANZATOR ||--o{ BON : "emite"
+    VANZATOR ||--|| UTILIZATOR : "are cont"
+    BON ||--o{ BON_PRODUS : "contine"
+    PRODUS ||--o{ BON_PRODUS : "apare pe"
+    BON ||--o{ PLATA : "este platit prin"
+```
+
+### Tipuri de relații
+
+- **`@OneToOne`**: `Vanzator` ↔ `Utilizator` (fiecare vânzător are cel mult un cont de logare)
+- **`@ManyToOne` / `@OneToMany`**: `Categorie` → `Produs`, `Client` → `Bon`, `Vanzator` → `Bon`, `Bon` → `BonProdus`, `Produs` → `BonProdus`, `Bon` → `Plata`
+- **`@ManyToMany`**: `Produs` ↔ `Promotie` (un produs poate fi în mai multe promoții, o promoție poate acoperi mai multe produse), tabel de legătură `promotie_produse`
 
 ---
 
-## 🧱 Entități principale
+## Entități principale
 - **Categorie**
 - **Produs**
 - **Client**
 - **Vanzator**
+- **Utilizator**
 - **Bon**
 - **BonProdus** (entitate de legătură)
 - **Plata**
+- **Promotie**
 
 ---
 
-## 🌐 REST API – Endpoint-uri
+## REST API – Endpoint-uri
 
 ### Categorii
 - `POST /api/categorii`
@@ -81,6 +98,22 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 - `POST /api/vanzatori`
 - `GET /api/vanzatori`
 
+### Utilizatori
+- `POST /api/utilizatori`
+- `GET /api/utilizatori`
+- `GET /api/utilizatori/{id}`
+- `PUT /api/utilizatori/{id}`
+- `DELETE /api/utilizatori/{id}`
+
+### Promoții
+- `POST /api/promotii`
+- `GET /api/promotii`
+- `GET /api/promotii/{id}`
+- `PUT /api/promotii/{id}`
+- `DELETE /api/promotii/{id}`
+- `POST /api/promotii/{id}/produse/{produsId}`
+- `DELETE /api/promotii/{id}/produse/{produsId}`
+
 ### Bonuri
 - `POST /api/bons`
 - `POST /api/bons/{bonId}/produse`
@@ -90,7 +123,7 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 
 ---
 
-## ✅ Validări
+## Validări
 
 ### Validări structurale (`@Valid`)
 Aplicate pe DTO-uri:
@@ -114,7 +147,7 @@ Acestea generează **400 / 404**, în funcție de caz.
 
 ---
 
-## ⚠️ Excepții
+## Excepții
 Aplicația folosește:
 - excepții custom de business
 - `try/catch` în service
@@ -124,7 +157,7 @@ Pentru claritate, mesajele de eroare sunt returnate către client.
 
 ---
 
-## 🧪 Testare
+## Testare
 
 ### Tipuri de teste implementate
 - **Controller Tests** (`@WebMvcTest`)
