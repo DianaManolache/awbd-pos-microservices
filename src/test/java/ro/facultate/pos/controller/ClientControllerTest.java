@@ -6,9 +6,12 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateClientRequest;
+import ro.facultate.pos.dto.UpdateClientRequest;
 import ro.facultate.pos.entity.Client;
 import ro.facultate.pos.service.ClientService;
 
@@ -57,7 +60,6 @@ class ClientControllerTest {
 
     @Test
     void createClient_invalidEmail_returns400() throws Exception {
-        //email invalid - @Email
         String body = """
                 {
                   "nume": "Maria Ionescu",
@@ -74,7 +76,6 @@ class ClientControllerTest {
 
     @Test
     void createClient_blankName_returns400() throws Exception {
-        //nume blank - @NotBlank
         String body = """
                 {
                   "nume": "",
@@ -101,5 +102,54 @@ class ClientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].nume").value("Maria"));
+    }
+
+    @Test
+    void getById_notFound_returns404() throws Exception {
+        Mockito.when(clientService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
+
+        mockMvc.perform(get("/api/clients/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_success_returns200() throws Exception {
+        UpdateClientRequest req = new UpdateClientRequest();
+        req.setNume("Maria Popescu");
+        req.setEmail("maria.popescu@example.com");
+        req.setTelefon("0733000000");
+
+        Client updated = new Client();
+        updated.setId(1L);
+        updated.setNume("Maria Popescu");
+        updated.setEmail("maria.popescu@example.com");
+        updated.setTelefon("0733000000");
+
+        Mockito.when(clientService.update(Mockito.eq(1L), Mockito.any(UpdateClientRequest.class)))
+                .thenReturn(updated);
+
+        mockMvc.perform(put("/api/clients/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nume").value("Maria Popescu"));
+    }
+
+    @Test
+    void delete_success_returns204() throws Exception {
+        mockMvc.perform(delete("/api/clients/1"))
+                .andExpect(status().isNoContent());
+
+        Mockito.verify(clientService).delete(1L);
+    }
+
+    @Test
+    void delete_withBonuri_returns400() throws Exception {
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Clientul are bonuri asociate"))
+                .when(clientService).delete(1L);
+
+        mockMvc.perform(delete("/api/clients/1"))
+                .andExpect(status().isBadRequest());
     }
 }

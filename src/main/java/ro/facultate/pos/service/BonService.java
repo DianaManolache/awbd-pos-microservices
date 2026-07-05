@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateBonRequest;
+import ro.facultate.pos.dto.UpdateBonRequest;
 import ro.facultate.pos.entity.Bon;
 import ro.facultate.pos.entity.Client;
 import ro.facultate.pos.entity.Vanzator;
@@ -71,6 +72,49 @@ public class BonService {
         return bonRepository.save(bon);
     }
 
+    public List<Bon> getAll() {
+        return bonRepository.findAll();
+    }
+
+    public Bon update(Long id, UpdateBonRequest req) {
+        Bon bon = bonRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bon not found"));
+
+        if (bon.getStatus() != BonStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul nu este OPEN");
+        }
+        if (!bonProdusRepository.findByBonId(id).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul are produse adaugate");
+        }
+
+        Client client = clientRepository.findById(req.getClientId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
+        Vanzator vanzator = vanzatorRepository.findById(req.getVanzatorId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vanzator not found"));
+
+        bon.setClient(client);
+        bon.setVanzator(vanzator);
+
+        return bonRepository.save(bon);
+    }
+
+    public void delete(Long id) {
+        Bon bon = bonRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bon not found"));
+
+        if (bon.getStatus() != BonStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul nu este OPEN");
+        }
+        if (!bonProdusRepository.findByBonId(id).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul are produse adaugate");
+        }
+        if (!plataRepository.findByBonId(id).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul are plati asociate");
+        }
+
+        bonRepository.delete(bon);
+    }
+
     public BonProdus addProdus(Long bonId, AddBonProdusRequest req) {
 
         Bon bon = bonRepository.findById(bonId)
@@ -98,6 +142,57 @@ public class BonService {
         bp.setPretUnitar(produs.getPret());
 
         return bonProdusRepository.save(bp);
+    }
+
+    public BonProdus updateBonProdus(Long bonId, Long bonProdusId, ro.facultate.pos.dto.UpdateBonProdusRequest req) {
+        Bon bon = bonRepository.findById(bonId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bon not found"));
+
+        if (bon.getStatus() != BonStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul nu este OPEN");
+        }
+
+        BonProdus line = bonProdusRepository.findById(bonProdusId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Linie inexistenta"));
+
+        if (!line.getBon().getId().equals(bonId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Linia nu apartine acestui bon");
+        }
+
+        Produs produs = line.getProdus();
+        int delta = req.getCantitate() - line.getCantitate();
+
+        if (delta > 0 && produs.getStoc() < delta) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stoc insuficient");
+        }
+
+        produs.setStoc(produs.getStoc() - delta);
+        produsRepository.save(produs);
+
+        line.setCantitate(req.getCantitate());
+        return bonProdusRepository.save(line);
+    }
+
+    public void deleteBonProdus(Long bonId, Long bonProdusId) {
+        Bon bon = bonRepository.findById(bonId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bon not found"));
+
+        if (bon.getStatus() != BonStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bonul nu este OPEN");
+        }
+
+        BonProdus line = bonProdusRepository.findById(bonProdusId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Linie inexistenta"));
+
+        if (!line.getBon().getId().equals(bonId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Linia nu apartine acestui bon");
+        }
+
+        Produs produs = line.getProdus();
+        produs.setStoc(produs.getStoc() + line.getCantitate());
+        produsRepository.save(produs);
+
+        bonProdusRepository.delete(line);
     }
 
     public BonDetailsResponse getDetails(Long bonId) {
@@ -184,5 +279,39 @@ public class BonService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bon not found"));
 
         return plataRepository.findByBonId(bonId);
+    }
+
+    public Plata getPlata(Long bonId, Long plataId) {
+        Plata plata = plataRepository.findById(plataId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plata not found"));
+
+        if (!plata.getBon().getId().equals(bonId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Plata nu apartine acestui bon");
+        }
+
+        return plata;
+    }
+
+    public Plata updatePlata(Long bonId, Long plataId, ro.facultate.pos.dto.UpdatePlataRequest req) {
+        Plata plata = getPlata(bonId, plataId);
+
+        if (plata.getStatus() == StatusPlata.SUCCESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nu se poate modifica o plata cu status SUCCESS");
+        }
+
+        plata.setTip(req.getTip());
+        plata.setSuma(req.getSuma());
+
+        return plataRepository.save(plata);
+    }
+
+    public void deletePlata(Long bonId, Long plataId) {
+        Plata plata = getPlata(bonId, plataId);
+
+        if (plata.getStatus() == StatusPlata.SUCCESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nu se poate sterge o plata cu status SUCCESS");
+        }
+
+        plataRepository.delete(plata);
     }
 }

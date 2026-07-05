@@ -5,10 +5,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateCategorieRequest;
+import ro.facultate.pos.dto.UpdateCategorieRequest;
 import ro.facultate.pos.entity.Categorie;
 import ro.facultate.pos.service.CategorieService;
 
@@ -51,7 +54,6 @@ class CategorieControllerTest {
 
     @Test
     void createCategorie_invalid_returns400() throws Exception {
-        //nume blank - @NotBlank
         String body = "{\"nume\":\"\"}";
 
         mockMvc.perform(post("/api/categorii")
@@ -72,5 +74,50 @@ class CategorieControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].nume").value("Panificatie"));
+    }
+
+    @Test
+    void getById_notFound_returns404() throws Exception {
+        Mockito.when(categorieService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Categorie not found"));
+
+        mockMvc.perform(get("/api/categorii/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_success_returns200() throws Exception {
+        UpdateCategorieRequest req = new UpdateCategorieRequest();
+        req.setNume("Panificatie si patiserie");
+
+        Categorie updated = new Categorie();
+        updated.setId(1L);
+        updated.setNume("Panificatie si patiserie");
+
+        Mockito.when(categorieService.update(Mockito.eq(1L), Mockito.any(UpdateCategorieRequest.class)))
+                .thenReturn(updated);
+
+        mockMvc.perform(put("/api/categorii/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nume").value("Panificatie si patiserie"));
+    }
+
+    @Test
+    void delete_success_returns204() throws Exception {
+        mockMvc.perform(delete("/api/categorii/1"))
+                .andExpect(status().isNoContent());
+
+        Mockito.verify(categorieService).delete(1L);
+    }
+
+    @Test
+    void delete_withProduse_returns400() throws Exception {
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Categoria are produse asociate"))
+                .when(categorieService).delete(1L);
+
+        mockMvc.perform(delete("/api/categorii/1"))
+                .andExpect(status().isBadRequest());
     }
 }

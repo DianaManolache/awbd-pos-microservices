@@ -89,20 +89,32 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 ### Categorii
 - `POST /api/categorii`
 - `GET /api/categorii`
+- `GET /api/categorii/{id}`
+- `PUT /api/categorii/{id}`
+- `DELETE /api/categorii/{id}`
 
 ### Produse
 - `POST /api/produse`
 - `GET /api/produse`
+- `GET /api/produse/{id}`
 - `GET /api/produse/categorie/{categorieId}`
+- `PUT /api/produse/{id}`
 - `PUT /api/produse/{id}/stoc`
+- `DELETE /api/produse/{id}`
 
 ### Clienți
 - `POST /api/clients`
 - `GET /api/clients`
+- `GET /api/clients/{id}`
+- `PUT /api/clients/{id}`
+- `DELETE /api/clients/{id}`
 
 ### Vânzători
 - `POST /api/vanzatori`
 - `GET /api/vanzatori`
+- `GET /api/vanzatori/{id}`
+- `PUT /api/vanzatori/{id}`
+- `DELETE /api/vanzatori/{id}`
 
 ### Utilizatori
 - `POST /api/utilizatori`
@@ -122,10 +134,18 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 
 ### Bonuri
 - `POST /api/bons`
-- `POST /api/bons/{bonId}/produse`
+- `GET /api/bons`
 - `GET /api/bons/{bonId}`
+- `PUT /api/bons/{bonId}`
+- `DELETE /api/bons/{bonId}`
+- `POST /api/bons/{bonId}/produse`
+- `PUT /api/bons/{bonId}/produse/{bonProdusId}`
+- `DELETE /api/bons/{bonId}/produse/{bonProdusId}`
 - `POST /api/bons/{bonId}/pay`
 - `GET /api/bons/{bonId}/plati`
+- `GET /api/bons/{bonId}/plati/{plataId}`
+- `PUT /api/bons/{bonId}/plati/{plataId}`
+- `DELETE /api/bons/{bonId}/plati/{plataId}`
 
 ---
 

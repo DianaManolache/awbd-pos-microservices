@@ -6,9 +6,12 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateProdusRequest;
+import ro.facultate.pos.dto.UpdateProdusRequest;
 import ro.facultate.pos.dto.UpdateStocRequest;
 import ro.facultate.pos.entity.Produs;
 import ro.facultate.pos.service.ProdusService;
@@ -60,7 +63,6 @@ class ProdusControllerTest {
 
     @Test
     void createProdus_invalidPrice_returns400() throws Exception {
-        //pret negativ - @Positive
         String body = """
                 {
                   "nume": "Coca Cola",
@@ -78,7 +80,6 @@ class ProdusControllerTest {
 
     @Test
     void createProdus_invalidStock_returns400() throws Exception {
-        //stoc negativ - @PositiveOrZero
         String body = """
                 {
                   "nume": "Coca Cola",
@@ -150,7 +151,6 @@ class ProdusControllerTest {
 
     @Test
     void updateStoc_negative_returns400() throws Exception {
-        //stoc negativ - @PositiveOrZero
         String body = """
                 { "stoc": -10 }
                 """;
@@ -158,6 +158,56 @@ class ProdusControllerTest {
         mockMvc.perform(put("/api/produse/1/stoc")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getById_notFound_returns404() throws Exception {
+        Mockito.when(produsService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
+
+        mockMvc.perform(get("/api/produse/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_success_returns200() throws Exception {
+        UpdateProdusRequest req = new UpdateProdusRequest();
+        req.setNume("Coca Cola Zero");
+        req.setPret(BigDecimal.valueOf(6.0));
+        req.setStoc(50);
+        req.setCategorieId(2L);
+
+        Produs updated = new Produs();
+        updated.setId(1L);
+        updated.setNume("Coca Cola Zero");
+        updated.setPret(BigDecimal.valueOf(6.0));
+        updated.setStoc(50);
+
+        Mockito.when(produsService.update(Mockito.eq(1L), Mockito.any(UpdateProdusRequest.class)))
+                .thenReturn(updated);
+
+        mockMvc.perform(put("/api/produse/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nume").value("Coca Cola Zero"));
+    }
+
+    @Test
+    void delete_success_returns204() throws Exception {
+        mockMvc.perform(delete("/api/produse/1"))
+                .andExpect(status().isNoContent());
+
+        Mockito.verify(produsService).delete(1L);
+    }
+
+    @Test
+    void delete_referenced_returns400() throws Exception {
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Produsul este pe cel putin un bon"))
+                .when(produsService).delete(1L);
+
+        mockMvc.perform(delete("/api/produse/1"))
                 .andExpect(status().isBadRequest());
     }
 }

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ro.facultate.pos.dto.CreateProdusRequest;
+import ro.facultate.pos.dto.UpdateProdusRequest;
 import ro.facultate.pos.entity.Produs;
 import ro.facultate.pos.service.ProdusService;
 import ro.facultate.pos.dto.UpdateStocRequest;
@@ -72,5 +73,38 @@ public class ProdusController {
             @PathVariable Long produsId,
             @Valid @RequestBody UpdateStocRequest req) {
         return produsService.updateStoc(produsId, req);
+    }
+
+    @Operation(summary = "Detalii produs", description = "Returneaza un produs specificat")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Produs gasit"),
+            @ApiResponse(responseCode = "404", description = "Produsul nu exista")
+    })
+    @GetMapping("/{id}")
+    public Produs getById(@PathVariable Long id) {
+        return produsService.getById(id);
+    }
+
+    @Operation(summary = "Actualizeaza produs", description = "Actualizeaza toate campurile unui produs existent")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Produs actualizat"),
+            @ApiResponse(responseCode = "400", description = "Date invalide (validare)"),
+            @ApiResponse(responseCode = "404", description = "Produsul sau categoria nu exista")
+    })
+    @PutMapping("/{id}")
+    public Produs update(@PathVariable Long id, @Valid @RequestBody UpdateProdusRequest req) {
+        return produsService.update(id, req);
+    }
+
+    @Operation(summary = "Sterge produs", description = "Sterge un produs existent")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Produs sters"),
+            @ApiResponse(responseCode = "400", description = "Produsul este referentiat de un bon sau o promotie"),
+            @ApiResponse(responseCode = "404", description = "Produsul nu exista")
+    })
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        produsService.delete(id);
     }
 }

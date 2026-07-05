@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface BonProdusRepository extends JpaRepository<BonProdus, Long> {
     List<BonProdus> findByBonId(Long bonId);
+    boolean existsByProdusId(Long produsId);
 }
