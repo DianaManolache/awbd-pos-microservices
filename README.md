@@ -45,23 +45,15 @@ Aplicația respectă următoarele cerințe de business:
 ## Diagrama ER
 Diagrama Entitate–Relație descrie structura bazei de date și relațiile dintre entități.
 
-```mermaid
-erDiagram
-    CATEGORIE ||--o{ PRODUS : "contine"
-    PRODUS }o--o{ PROMOTIE : "participa la"
-    CLIENT ||--o{ BON : "plaseaza"
-    VANZATOR ||--o{ BON : "emite"
-    VANZATOR ||--|| UTILIZATOR : "are cont"
-    BON ||--o{ BON_PRODUS : "contine"
-    PRODUS ||--o{ BON_PRODUS : "apare pe"
-    BON ||--o{ PLATA : "este platit prin"
-```
+![ERD Diagram](ERD_POS.png)
+
+Notația foloseste simbolurile standard "crow's foot": un cerc/linie simplă la un capăt înseamnă "1", iar furculița (trei linii) înseamnă "multe" (N/M).
 
 ### Tipuri de relații
 
 - **`@OneToOne`**: `Vanzator` ↔ `Utilizator` (fiecare vânzător are cel mult un cont de logare)
 - **`@ManyToOne` / `@OneToMany`**: `Categorie` → `Produs`, `Client` → `Bon`, `Vanzator` → `Bon`, `Bon` → `BonProdus`, `Produs` → `BonProdus`, `Bon` → `Plata`
-- **`@ManyToMany`**: `Produs` ↔ `Promotie` (un produs poate fi în mai multe promoții, o promoție poate acoperi mai multe produse), tabel de legătură `promotie_produse`
+- **`@ManyToMany`**: `Produs` ↔ `Promotie`, prin tabelul asociativ `promotie_produse` (un produs poate fi în mai multe promoții, o promoție poate acoperi mai multe produse)
 
 ---
 
