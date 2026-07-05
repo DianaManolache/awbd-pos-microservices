@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Categorii')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Categorii</h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <a href="/web/categorii/new" class="btn btn-primary mb-3">Adauga categorie</a>
+    <table class="table table-striped">
+        <thead>
+        <tr><th>ID</th><th>Nume</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="c : ${categorii}">
+            <td th:text="${c.id}"></td>
+            <td th:text="${c.nume}"></td>
+            <td>
+                <a th:href="@{/web/categorii/{id}/edit(id=${c.id})}" class="btn btn-sm btn-secondary">Editeaza</a>
+                <form th:action="@{/web/categorii/{id}/delete(id=${c.id})}" method="post" style="display:inline"
+                      onsubmit="return confirm('Sigur vrei sa stergi aceasta categorie?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Sterge</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
