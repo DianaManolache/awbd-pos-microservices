@@ -183,11 +183,31 @@ Pentru claritate, mesajele de eroare sunt returnate către client.
 
 ---
 
+## Configurare Multi-Environment
+
+Aplicația are 2 profiluri Spring, fiecare cu baza lui de date:
+
+- **`dev`** (profil implicit) — PostgreSQL local, configurat în `application-dev.yml`
+- **`test`** — H2 in-memory, configurat în `application-test.yml`, cu `ddl-auto: create-drop` (schema se recreează la fiecare rulare, fără sa fie nevoie de un server pornit separat)
+
+Profilul activ e setat implicit în `application.properties` (`spring.profiles.active=dev`). Testele automate folosesc profilul `test` prin `@ActiveProfiles("test")`.
+
+---
+
 ## Testare
 
 ### Tipuri de teste implementate
-- **Controller Tests** (`@WebMvcTest`)
-- **Service Tests** (Mockito)
+- **Unit tests** (JUnit 5 + Mockito) pentru toate serviciile
+- **Controller tests** (`@WebMvcTest`) pentru toate endpoint-urile REST
+- **Integration tests** (`@SpringBootTest` + `MockMvc`, profil `test`, bază de date H2 reală, nu mock-uri) — 3 scenarii end-to-end:
+  - flux complet de vânzare (categorie → produs → client → vânzător → bon → adăugare produs → plată)
+  - stoc insuficient (verifică blocarea operației și starea stocului în baza de date)
+  - ștergere blocată din cauza dependențelor (categorie cu produse asociate)
+
+### Code coverage
+- Măsurat cu JaCoCo, impus ca prag minim de build (`mvn verify`)
+- Prag minim: 70% line coverage pe pachetul `service`
+- Coverage curent: peste 90%
 
 ### Acoperire
 - toate endpoint-urile REST
