@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Promotie')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4" th:text="${isEdit} ? 'Editeaza promotie' : 'Adauga promotie'"></h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <form th:action="${formAction}" th:object="${promotie}" method="post">
+        <div class="mb-3">
+            <label class="form-label">Nume</label>
+            <input type="text" class="form-control" th:field="*{nume}" required/>
+            <div class="text-danger" th:if="${#fields.hasErrors('nume')}" th:errors="*{nume}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Procent reducere</label>
+            <input type="number" step="0.01" min="0" max="100" class="form-control" th:field="*{procentReducere}" required/>
+            <div class="text-danger" th:if="${#fields.hasErrors('procentReducere')}" th:errors="*{procentReducere}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Data start</label>
+            <input type="datetime-local" class="form-control" th:field="*{dataStart}" required/>
+            <div class="text-danger" th:if="${#fields.hasErrors('dataStart')}" th:errors="*{dataStart}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Data final</label>
+            <input type="datetime-local" class="form-control" th:field="*{dataFinal}" required/>
+            <div class="text-danger" th:if="${#fields.hasErrors('dataFinal')}" th:errors="*{dataFinal}"></div>
+        </div>
+        <div class="mb-3" th:if="${isEdit}">
+            <label class="form-label">
+                <input type="checkbox" th:field="*{activa}"/> Promotie activa
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Salveaza</button>
+        <a href="/web/promotii" class="btn btn-outline-secondary">Anuleaza</a>
+    </form>
+
+    <div th:if="${isEdit}" class="mt-4">
+        <h3>Produse asociate</h3>
+        <ul class="list-group mb-3">
+            <li class="list-group-item d-flex justify-content-between align-items-center" th:each="pr : ${produseAsociate}">
+                <span th:text="${pr.nume}"></span>
+                <form th:action="@{/web/promotii/{id}/produse/{produsId}/remove(id=${promotieId},produsId=${pr.id})}" method="post">
+                    <button type="submit" class="btn btn-sm btn-danger">Scoate</button>
+                </form>
+            </li>
+        </ul>
+        <form th:action="@{/web/promotii/{id}/produse(id=${promotieId})}" method="post" class="d-flex gap-2">
+            <select name="produsId" class="form-select" required>
+                <option th:each="pr : ${produseDisponibile}" th:value="${pr.id}" th:text="${pr.nume}"></option>
+            </select>
+            <button type="submit" class="btn btn-secondary">Adauga produs</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
