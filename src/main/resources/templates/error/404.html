@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Pagina inexistenta')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1>404 - Pagina nu a fost gasita</h1>
+    <p>Ne pare rau, pagina pe care o cauti nu exista.</p>
+    <a href="/" class="btn btn-primary">Inapoi la pagina principala</a>
+</div>
+</body>
+</html>
