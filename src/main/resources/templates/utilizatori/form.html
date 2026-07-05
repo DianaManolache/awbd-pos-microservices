@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Utilizator')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4" th:text="${isEdit} ? 'Editeaza utilizator' : 'Adauga utilizator'"></h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <form th:action="${formAction}" th:object="${utilizator}" method="post">
+        <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" th:field="*{username}" required maxlength="50"/>
+            <div class="text-danger" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Parola</label>
+            <input type="password" class="form-control" th:field="*{password}" required minlength="6" maxlength="255"/>
+            <div class="text-danger" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Rol</label>
+            <select class="form-select" th:field="*{rol}" required>
+                <option th:each="r : ${roluri}" th:value="${r}" th:text="${r}"></option>
+            </select>
+        </div>
+        <div class="mb-3" th:if="${isEdit}">
+            <label class="form-label">
+                <input type="checkbox" th:field="*{activ}"/> Cont activ
+            </label>
+        </div>
+        <div class="mb-3" th:unless="${isEdit}">
+            <label class="form-label">Vanzator</label>
+            <select class="form-select" th:field="*{vanzatorId}" required>
+                <option value="">Selecteaza vanzatorul</option>
+                <option th:each="v : ${vanzatori}" th:value="${v.id}" th:text="${v.nume}"></option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Salveaza</button>
+        <a href="/web/utilizatori" class="btn btn-outline-secondary">Anuleaza</a>
+    </form>
+</div>
+</body>
+</html>
