@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Client')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4" th:text="${isEdit} ? 'Editeaza client' : 'Adauga client'"></h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <form th:action="${formAction}" th:object="${client}" method="post">
+        <div class="mb-3">
+            <label class="form-label">Nume</label>
+            <input type="text" class="form-control" th:field="*{nume}" required maxlength="100"/>
+            <div class="text-danger" th:if="${#fields.hasErrors('nume')}" th:errors="*{nume}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" th:field="*{email}" maxlength="120"/>
+            <div class="text-danger" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Telefon</label>
+            <input type="text" class="form-control" th:field="*{telefon}" maxlength="20"/>
+            <div class="text-danger" th:if="${#fields.hasErrors('telefon')}" th:errors="*{telefon}"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">Salveaza</button>
+        <a href="/web/clienti" class="btn btn-outline-secondary">Anuleaza</a>
+    </form>
+</div>
+</body>
+</html>

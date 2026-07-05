@@ -1,0 +1,144 @@
+package ro.facultate.pos.web;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
+import ro.facultate.pos.entity.Client;
+import ro.facultate.pos.service.ClientService;
+
+import java.util.List;
+
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(ClientViewController.class)
+class ClientViewControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private ClientService clientService;
+
+    @Test
+    void list_rendersListView() throws Exception {
+        Client c = new Client();
+        c.setId(1L);
+        c.setNume("Maria");
+        Mockito.when(clientService.getAll()).thenReturn(List.of(c));
+
+        mockMvc.perform(get("/web/clienti"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/list"));
+    }
+
+    @Test
+    void newForm_rendersFormView() throws Exception {
+        mockMvc.perform(get("/web/clienti/new"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/form"));
+    }
+
+    @Test
+    void create_invalid_rendersFormWithoutRedirect() throws Exception {
+        mockMvc.perform(post("/web/clienti").param("nume", "").param("email", "not-an-email"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/form"));
+
+        Mockito.verify(clientService, Mockito.never()).create(Mockito.any());
+    }
+
+    @Test
+    void create_valid_redirectsToList() throws Exception {
+        mockMvc.perform(post("/web/clienti").param("nume", "Maria Ionescu").param("email", "maria@example.com"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/clienti"));
+    }
+
+    @Test
+    void delete_businessError_redirectsWithFlashMessage() throws Exception {
+        Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Clientul are bonuri asociate"))
+                .when(clientService).delete(1L);
+
+        mockMvc.perform(post("/web/clienti/1/delete"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/clienti"))
+                .andExpect(flash().attribute("businessError", "Clientul are bonuri asociate"));
+    }
+
+    @Test
+    void delete_success_redirectsToList() throws Exception {
+        mockMvc.perform(post("/web/clienti/1/delete"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/clienti"));
+
+        Mockito.verify(clientService).delete(1L);
+    }
+
+    @Test
+    void editForm_prefillsFormFromExistingClient() throws Exception {
+        Client c = new Client();
+        c.setId(1L);
+        c.setNume("Maria Ionescu");
+        c.setEmail("maria@example.com");
+        c.setTelefon("0722000000");
+
+        Mockito.when(clientService.getById(1L)).thenReturn(c);
+
+        mockMvc.perform(get("/web/clienti/1/edit"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/form"))
+                .andExpect(model().attribute("client", allOf(
+                        hasProperty("nume", equalTo("Maria Ionescu")),
+                        hasProperty("email", equalTo("maria@example.com")),
+                        hasProperty("telefon", equalTo("0722000000"))
+                )));
+    }
+
+    @Test
+    void update_invalid_rendersFormWithoutRedirect() throws Exception {
+        mockMvc.perform(post("/web/clienti/1")
+                        .param("nume", "")
+                        .param("email", "maria@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/form"));
+
+        Mockito.verify(clientService, Mockito.never()).update(Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void update_businessError_rendersFormWithBusinessError() throws Exception {
+        Mockito.when(clientService.update(Mockito.eq(1L), Mockito.any()))
+                .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "some message"));
+
+        mockMvc.perform(post("/web/clienti/1")
+                        .param("nume", "Maria Ionescu")
+                        .param("email", "maria@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("clienti/form"))
+                .andExpect(model().attribute("businessError", "some message"));
+    }
+
+    @Test
+    void update_valid_redirectsToList() throws Exception {
+        Client c = new Client();
+        c.setId(1L);
+        c.setNume("Maria Ionescu");
+        c.setEmail("maria@example.com");
+        Mockito.when(clientService.update(Mockito.eq(1L), Mockito.any())).thenReturn(c);
+
+        mockMvc.perform(post("/web/clienti/1")
+                        .param("nume", "Maria Ionescu")
+                        .param("email", "maria@example.com"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/clienti"));
+    }
+}
