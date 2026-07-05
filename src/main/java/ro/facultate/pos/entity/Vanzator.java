@@ -20,5 +20,8 @@ public class Vanzator {
     @Size(max = 100)
     private String nume;
 
+    @OneToOne(mappedBy = "vanzator")
+    private Utilizator utilizator;
+
     public Vanzator() {}
 }

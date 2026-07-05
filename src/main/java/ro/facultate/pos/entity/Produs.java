@@ -9,6 +9,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "produse")
@@ -34,6 +36,9 @@ public class Produs {
     @ManyToOne
     @JoinColumn(name = "categorie_id")
     private Categorie categorie;
+
+    @ManyToMany(mappedBy = "produse")
+    private Set<Promotie> promotii = new HashSet<>();
 
     public Produs() {}
 }
