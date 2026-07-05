@@ -47,8 +47,6 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 
 ![ERD Diagram](ERD_POS.png)
 
-Notația foloseste simbolurile standard "crow's foot": un cerc/linie simplă la un capăt înseamnă "1", iar furculița (trei linii) înseamnă "multe" (N/M).
-
 ### Tipuri de relații
 
 - **`@OneToOne`**: `Vanzator` ↔ `Utilizator` (fiecare vânzător are cel mult un cont de logare)
