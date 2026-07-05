@@ -12,6 +12,22 @@ Aplicația implementează un flux complet de vânzare:
 
 ---
 
+## Cerințe funcționale
+
+1. Gestionarea categoriilor de produse (creare, listare, actualizare, ștergere)
+2. Gestionarea produselor, cu preț, stoc și asociere la o categorie
+3. Gestionarea promoțiilor aplicabile unuia sau mai multor produse
+4. Gestionarea clienților și a vânzătorilor
+5. Autentificare și autorizare pe bază de roluri (USER, ADMIN), cu conturi de utilizator asociate vânzătorilor
+6. Emiterea și gestionarea bonurilor fiscale: deschidere, adăugare produse pe bon, modificare/ștergere linii, finalizare
+7. Procesarea plăților (CASH/CARD) și urmărirea statusului acestora
+8. Validarea datelor introduse și tratarea erorilor cu mesaje specifice pentru fiecare operație
+9. Paginare și sortare pentru listele de date (produse, clienți, bonuri)
+10. Interfață web cu formulare pentru toate operațiile de tip CRUD
+11. Înregistrarea evenimentelor aplicației (logging) pentru operațiuni și erori
+
+---
+
 ## Business Requirements
 Aplicația respectă următoarele cerințe de business:
 
