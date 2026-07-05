@@ -3,18 +3,26 @@ package ro.facultate.pos.service;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateVanzatorRequest;
+import ro.facultate.pos.dto.UpdateVanzatorRequest;
+import ro.facultate.pos.entity.Utilizator;
 import ro.facultate.pos.entity.Vanzator;
+import ro.facultate.pos.repository.BonRepository;
+import ro.facultate.pos.repository.UtilizatorRepository;
 import ro.facultate.pos.repository.VanzatorRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class VanzatorServiceTest {
 
     private final VanzatorRepository vanzatorRepository = Mockito.mock(VanzatorRepository.class);
-    private final VanzatorService vanzatorService = new VanzatorService(vanzatorRepository);
+    private final BonRepository bonRepository = Mockito.mock(BonRepository.class);
+    private final UtilizatorRepository utilizatorRepository = Mockito.mock(UtilizatorRepository.class);
+    private final VanzatorService vanzatorService = new VanzatorService(vanzatorRepository, bonRepository, utilizatorRepository);
 
     @Test
     void create_shouldSaveVanzator() {
@@ -45,5 +53,75 @@ class VanzatorServiceTest {
 
         assertEquals(1, result.size());
         Mockito.verify(vanzatorRepository).findAll();
+    }
+
+    @Test
+    void getById_notFound_throwsNotFound() {
+        Mockito.when(vanzatorRepository.findById(99L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> vanzatorService.getById(99L));
+
+        assertEquals(404, ex.getStatusCode().value());
+    }
+
+    @Test
+    void update_shouldUpdateNume() {
+        Vanzator existing = new Vanzator();
+        existing.setId(1L);
+        existing.setNume("Vanzator 1");
+
+        Mockito.when(vanzatorRepository.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.when(vanzatorRepository.save(Mockito.any(Vanzator.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateVanzatorRequest req = new UpdateVanzatorRequest();
+        req.setNume("Vanzator Principal");
+
+        Vanzator result = vanzatorService.update(1L, req);
+
+        assertEquals("Vanzator Principal", result.getNume());
+    }
+
+    @Test
+    void delete_shouldRemoveVanzator() {
+        Vanzator existing = new Vanzator();
+        existing.setId(1L);
+
+        Mockito.when(vanzatorRepository.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.when(bonRepository.existsByVanzatorId(1L)).thenReturn(false);
+        Mockito.when(utilizatorRepository.findByVanzatorId(1L)).thenReturn(Optional.empty());
+
+        vanzatorService.delete(1L);
+
+        Mockito.verify(vanzatorRepository).delete(existing);
+    }
+
+    @Test
+    void delete_withBonuri_throwsBadRequest() {
+        Vanzator existing = new Vanzator();
+        existing.setId(1L);
+
+        Mockito.when(vanzatorRepository.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.when(bonRepository.existsByVanzatorId(1L)).thenReturn(true);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> vanzatorService.delete(1L));
+
+        assertEquals(400, ex.getStatusCode().value());
+    }
+
+    @Test
+    void delete_withUtilizator_throwsBadRequest() {
+        Vanzator existing = new Vanzator();
+        existing.setId(1L);
+
+        Mockito.when(vanzatorRepository.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.when(bonRepository.existsByVanzatorId(1L)).thenReturn(false);
+        Mockito.when(utilizatorRepository.findByVanzatorId(1L)).thenReturn(Optional.of(new Utilizator()));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> vanzatorService.delete(1L));
+
+        assertEquals(400, ex.getStatusCode().value());
     }
 }
