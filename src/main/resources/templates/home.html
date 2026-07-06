@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Acasa')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Bine ai venit</h1>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Casierie</h5>
+                    <p class="card-text">Deschide bonuri, adauga produse, incaseaza plati.</p>
+                    <a href="/web/bonuri" class="btn btn-primary">Bonuri</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Administrare</h5>
+                    <p class="card-text">Gestioneaza categorii, produse, clienti, vanzatori, utilizatori si promotii.</p>
+                    <a href="/web/categorii" class="btn btn-secondary">Categorii</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Produse')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Produse</h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <a href="/web/produse/new" class="btn btn-primary mb-3">Adauga produs</a>
+    <table class="table table-striped">
+        <thead>
+        <tr><th>ID</th><th>Nume</th><th>Pret</th><th>Stoc</th><th>Categorie</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="p : ${produse}">
+            <td th:text="${p.id}"></td>
+            <td th:text="${p.nume}"></td>
+            <td th:text="${p.pret}"></td>
+            <td th:text="${p.stoc}"></td>
+            <td th:text="${p.categorie != null ? p.categorie.nume : ''}"></td>
+            <td>
+                <a th:href="@{/web/produse/{id}/edit(id=${p.id})}" class="btn btn-sm btn-secondary">Editeaza</a>
+                <form th:action="@{/web/produse/{id}/delete(id=${p.id})}" method="post" style="display:inline"
+                      onsubmit="return confirm('Sigur vrei sa stergi acest produs?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Sterge</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

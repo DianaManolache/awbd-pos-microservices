@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Bon #' + ${bon.id})}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-3">Bon #<span th:text="${bon.id}"></span> - <span th:text="${bon.status}"></span></h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+
+    <p>
+        <strong>Client:</strong> <span th:text="${client.nume}"></span> &nbsp;|&nbsp;
+        <strong>Vanzator:</strong> <span th:text="${vanzator.nume}"></span> &nbsp;|&nbsp;
+        <strong>Total:</strong> <span th:text="${bon.total}"></span>
+    </p>
+
+    <h3>Produse pe bon</h3>
+    <table class="table table-sm">
+        <thead><tr><th>Produs</th><th>Cantitate</th><th>Pret unitar</th><th>Total linie</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="linie : ${bon.produse}">
+            <td th:text="${linie.produsNume}"></td>
+            <td>
+                <form th:action="@{/web/bonuri/{id}/produse/{lineId}/update(id=${bon.id},lineId=${linie.id})}" method="post" class="d-flex gap-1">
+                    <input type="number" name="cantitate" min="1" th:value="${linie.cantitate}" required class="form-control form-control-sm" style="width:80px"/>
+                    <button type="submit" class="btn btn-sm btn-secondary">Actualizeaza</button>
+                </form>
+            </td>
+            <td th:text="${linie.pretUnitar}"></td>
+            <td th:text="${linie.totalLinie}"></td>
+            <td>
+                <form th:action="@{/web/bonuri/{id}/produse/{lineId}/delete(id=${bon.id},lineId=${linie.id})}" method="post"
+                      onsubmit="return confirm('Sigur vrei sa stergi aceasta linie?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Sterge</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:if="${bon.status.name() == 'OPEN'}" class="mb-4">
+        <h4>Adauga produs pe bon</h4>
+        <form th:action="@{/web/bonuri/{id}/produse(id=${bon.id})}" th:object="${addProdusForm}" method="post" class="d-flex gap-2">
+            <select th:field="*{produsId}" class="form-select" required>
+                <option th:each="p : ${produseDisponibile}" th:value="${p.id}" th:text="${p.nume}"></option>
+            </select>
+            <input type="number" th:field="*{cantitate}" min="1" class="form-control" style="width:120px" required/>
+            <button type="submit" class="btn btn-primary">Adauga</button>
+        </form>
+    </div>
+
+    <div th:if="${bon.status.name() == 'OPEN'}" class="mb-4">
+        <h4>Plateste bonul</h4>
+        <form th:action="@{/web/bonuri/{id}/pay(id=${bon.id})}" th:object="${payForm}" method="post" class="d-flex gap-2">
+            <select th:field="*{tipPlata}" class="form-select" style="width:200px" required>
+                <option value="CASH">CASH</option>
+                <option value="CARD">CARD</option>
+            </select>
+            <button type="submit" class="btn btn-success">Plateste</button>
+        </form>
+    </div>
+
+    <h3>Plati</h3>
+    <table class="table table-sm">
+        <thead><tr><th>Tip</th><th>Suma</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="p : ${plati}">
+            <td th:text="${p.tip}"></td>
+            <td th:text="${p.suma}"></td>
+            <td th:text="${p.status}"></td>
+            <td>
+                <form th:action="@{/web/bonuri/{id}/plati/{plataId}/delete(id=${bon.id},plataId=${p.id})}" method="post"
+                      onsubmit="return confirm('Sigur vrei sa stergi aceasta plata?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Sterge</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a href="/web/bonuri" class="btn btn-outline-secondary">Inapoi la lista de bonuri</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Bon nou')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Deschide bon nou</h1>
+    <div class="alert alert-danger" th:if="${businessError}" th:text="${businessError}"></div>
+    <form th:action="@{/web/bonuri}" th:object="${bon}" method="post">
+        <div class="mb-3">
+            <label class="form-label">Client</label>
+            <select class="form-select" th:field="*{clientId}" required>
+                <option value="">Selecteaza clientul</option>
+                <option th:each="c : ${clienti}" th:value="${c.id}" th:text="${c.nume}"></option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Vanzator</label>
+            <select class="form-select" th:field="*{vanzatorId}" required>
+                <option value="">Selecteaza vanzatorul</option>
+                <option th:each="v : ${vanzatori}" th:value="${v.id}" th:text="${v.nume}"></option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Deschide bon</button>
+        <a href="/web/bonuri" class="btn btn-outline-secondary">Anuleaza</a>
+    </form>
+</div>
+</body>
+</html>

@@ -149,6 +149,18 @@ Diagrama Entitate–Relație descrie structura bazei de date și relațiile dint
 
 ---
 
+## Views (Thymeleaf)
+
+Interfata web (separata de API-ul REST) e disponibila sub `/web/...`:
+
+- `/` - pagina principala
+- `/web/categorii`, `/web/produse`, `/web/clienti`, `/web/vanzatori`, `/web/utilizatori`, `/web/promotii` - lista + creare + editare + stergere pentru fiecare entitate
+- `/web/bonuri` - lista bonurilor; `/web/bonuri/new` - deschide bon nou; `/web/bonuri/{id}` - pagina de detaliu cu tot fluxul de vanzare (adaugare/editare/stergere produse pe bon, plata, listare/stergere plati)
+
+Validare server-side (Bean Validation, afisata in formular) + client-side (atribute HTML5) pe toate formularele. Erorile de business (ex. stoc insuficient) apar ca alerta pe pagina, fara sa treaca prin pagina de eroare. Pagini de eroare custom pentru 404 si 500 in `templates/error/`.
+
+---
+
 ## Validări
 
 ### Validări structurale (`@Valid`)
