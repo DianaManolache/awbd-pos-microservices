@@ -21,7 +21,7 @@
             <td th:text="${linie.produsNume}"></td>
             <td>
                 <form th:action="@{/web/bonuri/{id}/produse/{lineId}/update(id=${bon.id},lineId=${linie.id})}" method="post" class="d-flex gap-1">
-                    <input type="number" name="cantitate" min="1" th:value="${linie.cantitate}" class="form-control form-control-sm" style="width:80px"/>
+                    <input type="number" name="cantitate" min="1" th:value="${linie.cantitate}" required class="form-control form-control-sm" style="width:80px"/>
                     <button type="submit" class="btn btn-sm btn-secondary">Actualizeaza</button>
                 </form>
             </td>

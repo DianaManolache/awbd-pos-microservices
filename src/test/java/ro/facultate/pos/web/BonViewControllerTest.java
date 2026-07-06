@@ -103,6 +103,17 @@ class BonViewControllerTest {
     }
 
     @Test
+    void detail_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(bonService.getDetails(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Bonul nu exista"));
+
+        mockMvc.perform(get("/web/bonuri/99"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/bonuri"))
+                .andExpect(flash().attribute("businessError", "Bonul nu exista"));
+    }
+
+    @Test
     void addProdus_businessError_redirectsWithFlashMessage() throws Exception {
         Mockito.doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stoc insuficient"))
                 .when(bonService).addProdus(Mockito.eq(10L), Mockito.any());
@@ -131,6 +142,26 @@ class BonViewControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/web/bonuri/10"))
                 .andExpect(flash().attribute("businessError", "Stoc insuficient"));
+    }
+
+    @Test
+    void updateLine_invalidCantitate_redirectsWithFlashMessageAndDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/web/bonuri/10/produse/2/update").param("cantitate", "0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/bonuri/10"))
+                .andExpect(flash().attributeExists("businessError"));
+
+        Mockito.verify(bonService, Mockito.never()).updateBonProdus(Mockito.any(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void updateLine_missingCantitate_redirectsWithFlashMessageAndDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/web/bonuri/10/produse/2/update"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/bonuri/10"))
+                .andExpect(flash().attributeExists("businessError"));
+
+        Mockito.verify(bonService, Mockito.never()).updateBonProdus(Mockito.any(), Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -171,6 +202,16 @@ class BonViewControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/web/bonuri/10"))
                 .andExpect(flash().attribute("businessError", "Bonul nu este OPEN"));
+    }
+
+    @Test
+    void pay_missingTipPlata_redirectsWithFlashMessageAndDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/web/bonuri/10/pay"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/bonuri/10"))
+                .andExpect(flash().attributeExists("businessError"));
+
+        Mockito.verify(bonService, Mockito.never()).payBon(Mockito.any(), Mockito.any());
     }
 
     @Test

@@ -4,16 +4,18 @@ import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ro.facultate.pos.dto.*;
 import ro.facultate.pos.entity.Bon;
-import ro.facultate.pos.entity.enums.TipPlata;
 import ro.facultate.pos.service.BonService;
 import ro.facultate.pos.service.ClientService;
 import ro.facultate.pos.service.ProdusService;
 import ro.facultate.pos.service.VanzatorService;
+
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/web/bonuri")
@@ -67,8 +69,14 @@ public class BonViewController {
     }
 
     @GetMapping("/{id}")
-    public String detail(@PathVariable Long id, Model model) {
-        BonDetailsResponse details = bonService.getDetails(id);
+    public String detail(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        BonDetailsResponse details;
+        try {
+            details = bonService.getDetails(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/bonuri";
+        }
 
         model.addAttribute("bon", details);
         model.addAttribute("client", clientService.getById(details.getClientId()));
@@ -93,9 +101,12 @@ public class BonViewController {
 
     @PostMapping("/{id}/produse/{lineId}/update")
     public String updateLine(@PathVariable Long id, @PathVariable Long lineId,
-                              @RequestParam Integer cantitate, RedirectAttributes redirectAttributes) {
-        UpdateBonProdusRequest req = new UpdateBonProdusRequest();
-        req.setCantitate(cantitate);
+                              @Valid @ModelAttribute("updateBonProdusForm") UpdateBonProdusRequest req,
+                              BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("businessError", combineErrors(bindingResult));
+            return "redirect:/web/bonuri/" + id;
+        }
         try {
             bonService.updateBonProdus(id, lineId, req);
         } catch (ResponseStatusException e) {
@@ -116,10 +127,14 @@ public class BonViewController {
     }
 
     @PostMapping("/{id}/pay")
-    public String pay(@PathVariable Long id, @RequestParam TipPlata tipPlata,
-                       RedirectAttributes redirectAttributes) {
+    public String pay(@PathVariable Long id, @Valid @ModelAttribute("payForm") PayBonRequest payForm,
+                       BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("businessError", combineErrors(bindingResult));
+            return "redirect:/web/bonuri/" + id;
+        }
         try {
-            bonService.payBon(id, tipPlata);
+            bonService.payBon(id, payForm.getTipPlata());
         } catch (ResponseStatusException e) {
             redirectAttributes.addFlashAttribute("businessError", e.getReason());
         }
@@ -135,5 +150,11 @@ public class BonViewController {
             redirectAttributes.addFlashAttribute("businessError", e.getReason());
         }
         return "redirect:/web/bonuri/" + id;
+    }
+
+    private String combineErrors(BindingResult bindingResult) {
+        return bindingResult.getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining("; "));
     }
 }
