@@ -21,7 +21,6 @@ public class Utilizator {
     @Column(unique = true)
     private String username;
 
-    // camp text simplu; criptarea cu BCrypt se conecteaza in Faza 1 (Spring Security)
     @NotBlank
     private String passwordHash;
 

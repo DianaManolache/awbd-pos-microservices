@@ -2,6 +2,7 @@ package ro.facultate.pos.service;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateUtilizatorRequest;
 import ro.facultate.pos.dto.UpdateUtilizatorRequest;
@@ -20,7 +21,8 @@ class UtilizatorServiceTest {
 
     private final UtilizatorRepository utilizatorRepository = Mockito.mock(UtilizatorRepository.class);
     private final VanzatorRepository vanzatorRepository = Mockito.mock(VanzatorRepository.class);
-    private final UtilizatorService utilizatorService = new UtilizatorService(utilizatorRepository, vanzatorRepository);
+    private final UtilizatorService utilizatorService =
+            new UtilizatorService(utilizatorRepository, vanzatorRepository, new BCryptPasswordEncoder());
 
     private CreateUtilizatorRequest createRequest() {
         CreateUtilizatorRequest req = new CreateUtilizatorRequest();
@@ -49,6 +51,11 @@ class UtilizatorServiceTest {
 
         assertEquals(1L, result.getId());
         assertEquals("ana.vanzatoare", result.getUsername());
+
+        org.mockito.ArgumentCaptor<Utilizator> captor = org.mockito.ArgumentCaptor.forClass(Utilizator.class);
+        Mockito.verify(utilizatorRepository).save(captor.capture());
+        assertNotEquals("parola123", captor.getValue().getPasswordHash());
+        assertTrue(new BCryptPasswordEncoder().matches("parola123", captor.getValue().getPasswordHash()));
     }
 
     @Test
@@ -128,6 +135,8 @@ class UtilizatorServiceTest {
         assertEquals("ana.noua", result.getUsername());
         assertEquals(RolUtilizator.ADMIN, result.getRol());
         assertFalse(result.getActiv());
+        assertNotEquals("parolaNoua123", result.getPasswordHash());
+        assertTrue(new BCryptPasswordEncoder().matches("parolaNoua123", result.getPasswordHash()));
     }
 
     @Test
