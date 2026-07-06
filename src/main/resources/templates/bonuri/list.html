@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Bonuri')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Bonuri</h1>
+    <a href="/web/bonuri/new" class="btn btn-primary mb-3">Deschide bon nou</a>
+    <table class="table table-striped">
+        <thead>
+        <tr><th>ID</th><th>Status</th><th>Data</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="b : ${bonuri}">
+            <td th:text="${b.id}"></td>
+            <td th:text="${b.status}"></td>
+            <td th:text="${b.data}"></td>
+            <td><a th:href="@{/web/bonuri/{id}(id=${b.id})}" class="btn btn-sm btn-secondary">Detalii</a></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
