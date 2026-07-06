@@ -161,6 +161,17 @@ Validare server-side (Bean Validation, afisata in formular) + client-side (atrib
 
 ---
 
+## Paginare si sortare
+
+Implementat cu `Pageable` (Spring Data) pentru listele de **Produs**, **Client** si **Bon** (`/web/produse`, `/web/clienti`, `/web/bonuri`):
+
+- sortare dupa minim 2 criterii per entitate: Produs (nume/pret), Client (nume/email), Bon (data/status) - linkuri clickable pe antetul coloanelor
+- navigare intre pagini (Anterior/Urmator + numere de pagina) cu Bootstrap pagination
+- dimensiune pagina configurabila (5/10/20) dintr-un selector care reincarca lista
+- parametri URL: `page`, `size`, `sort`, `dir`
+
+---
+
 ## Logging
 
 Framework: SLF4J + Logback, configurat in `logback-spring.xml`.

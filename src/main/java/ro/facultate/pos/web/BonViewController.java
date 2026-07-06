@@ -1,6 +1,10 @@
 package ro.facultate.pos.web;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -35,8 +39,19 @@ public class BonViewController {
     }
 
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("bonuri", bonService.getAll());
+    public String list(@RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "5") int size,
+                        @RequestParam(defaultValue = "data") String sort,
+                        @RequestParam(defaultValue = "desc") String dir,
+                        Model model) {
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sort));
+        Page<Bon> bonuriPage = bonService.getPage(pageable);
+
+        model.addAttribute("bonuriPage", bonuriPage);
+        model.addAttribute("sort", sort);
+        model.addAttribute("dir", dir);
+        model.addAttribute("size", size);
         return "bonuri/list";
     }
 
