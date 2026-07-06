@@ -250,3 +250,34 @@ Profilul activ e setat implicit în `application.properties` (`spring.profiles.a
 - cazuri pozitive (success)
 - cazuri negative (400 / 404 / business rules)
 
+---
+
+## Spring Security
+
+Autentificare si autorizare bazate pe roluri, implementate cu Spring Security.
+
+### Autentificare
+- `UserDetailsService` custom (`UtilizatorDetailsService`), care citeste contul din tabela `utilizatori` (nu schema JDBC implicita din Spring Security)
+- Parolele sunt criptate cu `BCryptPasswordEncoder` la creare/actualizare (`UtilizatorService`); nu se mai salveaza in clar
+- Contul mapeaza campul `activ` pe starea `disabled` a userului (un cont dezactivat nu se mai poate autentifica) si `rol` (`USER`/`ADMIN`) pe autoritatea `ROLE_USER`/`ROLE_ADMIN`
+- Pagina de login este custom, la `/login`, cu formular Thymeleaf (username, parola, "tine-ma minte")
+- Suport simultan pentru form login (pentru interfata web) si HTTP Basic (pentru clienti API/Swagger)
+- La primul start al aplicatiei, daca tabela `utilizatori` este goala, se genereaza automat un cont ADMIN implicit (`admin` / `admin123`, `AdminSeeder`) astfel incat aplicatia sa fie utilizabila din prima fara acces direct la baza de date
+
+### Autorizare pe rol
+- `/web/bonuri/**` (Casierie) - accesibil pentru `USER` si `ADMIN`
+- restul paginilor sub `/web/**` (Administrare: categorii, produse, clienti, vanzatori, utilizatori, promotii) - doar `ADMIN`
+- `/api/**` - orice utilizator autentificat (USER sau ADMIN)
+- `/`, `/login`, paginile de eroare si Swagger UI - publice
+
+### CSRF, logout, remember-me
+- protectie CSRF activa pentru `/web/**`, dezactivata pentru `/api/**` (folosit de clienti API care nu au sesiune de browser)
+- token-ul CSRF este injectat automat de Thymeleaf in toate formularele existente (`th:action`), fara modificari suplimentare in template-uri
+- logout functional (`POST /logout`), buton disponibil in bara de navigare pe toate paginile, invalideaza sesiunea si cookie-ul de remember-me
+- remember-me disponibil ca opțiune la login (cookie valabil 14 zile)
+
+### Testare
+- toate cele 15 clase `@WebMvcTest` existente ruleaza cu `@AutoConfigureMockMvc(addFilters = false)` (testeaza doar logica MVC, nu filtrele de securitate)
+- `SalesFlowIntegrationTest` (test de integrare end-to-end pe API) ruleaza cu `@WithMockUser(roles = "ADMIN")`
+- `SecurityIntegrationTest` - teste dedicate, pe context Spring Boot complet, cu utilizatori reali salvati cu parola criptata: acces anonim la pagini protejate (redirect la login), acces anonim la API (401), rol gresit pe pagina de administrare (403), rol corect (200), login cu credentiale corecte/incorecte/inexistente, logout
+

@@ -3,6 +3,7 @@ package ro.facultate.pos.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.dto.CreateUtilizatorRequest;
@@ -21,10 +22,13 @@ public class UtilizatorService {
 
     private final UtilizatorRepository utilizatorRepository;
     private final VanzatorRepository vanzatorRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UtilizatorService(UtilizatorRepository utilizatorRepository, VanzatorRepository vanzatorRepository) {
+    public UtilizatorService(UtilizatorRepository utilizatorRepository, VanzatorRepository vanzatorRepository,
+                              PasswordEncoder passwordEncoder) {
         this.utilizatorRepository = utilizatorRepository;
         this.vanzatorRepository = vanzatorRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Utilizator create(CreateUtilizatorRequest req) {
@@ -43,7 +47,7 @@ public class UtilizatorService {
 
         Utilizator u = new Utilizator();
         u.setUsername(req.getUsername());
-        u.setPasswordHash(req.getPassword());
+        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         u.setRol(req.getRol());
         u.setActiv(true);
         u.setVanzator(vanzator);
@@ -72,7 +76,7 @@ public class UtilizatorService {
                 });
 
         u.setUsername(req.getUsername());
-        u.setPasswordHash(req.getPassword());
+        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         u.setRol(req.getRol());
         u.setActiv(req.getActiv());
 

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Autentificare')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container" style="max-width: 400px;">
+    <h1 class="mb-4">Autentificare</h1>
+
+    <div class="alert alert-danger" th:if="${param.error}">Username sau parola incorecta.</div>
+    <div class="alert alert-success" th:if="${param.logout}">Te-ai delogat cu succes.</div>
+
+    <form th:action="@{/login}" method="post">
+        <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input type="text" id="username" name="username" class="form-control" required autofocus/>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="password">Parola</label>
+            <input type="password" id="password" name="password" class="form-control" required/>
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" id="rememberMe" name="remember-me" class="form-check-input"/>
+            <label class="form-check-label" for="rememberMe">Tine-ma minte</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Autentificare</button>
+    </form>
+</div>
+</body>
+</html>
