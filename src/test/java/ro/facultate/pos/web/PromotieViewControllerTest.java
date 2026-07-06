@@ -113,9 +113,12 @@ class PromotieViewControllerTest {
                         .param("dataFinal", "2026-07-31T00:00")
                         .param("activa", "true"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("promotii/form"));
+                .andExpect(view().name("promotii/form"))
+                .andExpect(model().attribute("produseAsociate", existing.getProduse()))
+                .andExpect(model().attributeExists("produseDisponibile"));
 
         Mockito.verify(promotieService, Mockito.never()).update(Mockito.any(), Mockito.any());
+        Mockito.verify(produsService, Mockito.atLeastOnce()).getAll();
     }
 
     @Test
@@ -141,7 +144,11 @@ class PromotieViewControllerTest {
                         .param("activa", "true"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("promotii/form"))
-                .andExpect(model().attribute("businessError", "Data finala trebuie sa fie dupa data start"));
+                .andExpect(model().attribute("businessError", "Data finala trebuie sa fie dupa data start"))
+                .andExpect(model().attribute("produseAsociate", existing.getProduse()))
+                .andExpect(model().attributeExists("produseDisponibile"));
+
+        Mockito.verify(produsService, Mockito.atLeastOnce()).getAll();
     }
 
     @Test
