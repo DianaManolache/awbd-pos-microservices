@@ -161,6 +161,18 @@ Validare server-side (Bean Validation, afisata in formular) + client-side (atrib
 
 ---
 
+## Logging
+
+Framework: SLF4J + Logback, configurat in `logback-spring.xml`.
+
+- nivel `INFO` implicit (root), nivel `DEBUG` specific pentru pachetul `ro.facultate.pos`
+- `logs/pos-app.log` - toate log-urile aplicatiei (INFO/DEBUG/ERROR)
+- `logs/pos-error.log` - fisier separat, filtrat strict la nivel `ERROR`
+- serviciile folosesc `INFO` la operatii reusite (creare/actualizare/stergere) si respingeri de business (ex. "stoc insuficient"), `DEBUG` la pasi intermediari (ex. calculul stocului/totalului)
+- un `@ControllerAdvice` (`GlobalExceptionHandler`, scopat doar la `/api/...`) prinde orice exceptie neasteptata din API, o logheaza la nivel `ERROR` cu stack trace, si raspunde cu 500 - fara sa afecteze paginile de eroare custom din Views
+
+---
+
 ## Validări
 
 ### Validări structurale (`@Valid`)

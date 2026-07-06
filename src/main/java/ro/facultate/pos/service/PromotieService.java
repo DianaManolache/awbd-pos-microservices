@@ -1,5 +1,7 @@
 package ro.facultate.pos.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,6 +17,8 @@ import java.util.List;
 
 @Service
 public class PromotieService {
+
+    private static final Logger log = LoggerFactory.getLogger(PromotieService.class);
 
     private final PromotieRepository promotieRepository;
     private final ProdusRepository produsRepository;
@@ -34,7 +38,9 @@ public class PromotieService {
         p.setDataFinal(req.getDataFinal());
         p.setActiva(true);
 
-        return promotieRepository.save(p);
+        Promotie saved = promotieRepository.save(p);
+        log.info("Promotie creata cu id {}", saved.getId());
+        return saved;
     }
 
     public List<Promotie> getAll() {
@@ -56,12 +62,15 @@ public class PromotieService {
         p.setDataFinal(req.getDataFinal());
         p.setActiva(req.getActiva());
 
-        return promotieRepository.save(p);
+        Promotie saved = promotieRepository.save(p);
+        log.info("Promotie actualizata cu id {}", saved.getId());
+        return saved;
     }
 
     public void delete(Long id) {
         Promotie p = getById(id);
         promotieRepository.delete(p);
+        log.info("Promotie stearsa cu id {}", id);
     }
 
     public Promotie addProdus(Long promotieId, Long produsId) {
@@ -70,11 +79,14 @@ public class PromotieService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
 
         if (promotie.getProduse().contains(produs)) {
+            log.info("Asociere produs {} la promotia {} respinsa: deja asociat", produsId, promotieId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Produsul este deja in promotie");
         }
 
         promotie.getProduse().add(produs);
-        return promotieRepository.save(promotie);
+        Promotie saved = promotieRepository.save(promotie);
+        log.debug("Produs {} asociat promotiei {}", produsId, promotieId);
+        return saved;
     }
 
     public Promotie removeProdus(Long promotieId, Long produsId) {
@@ -86,7 +98,9 @@ public class PromotieService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produsul nu este in aceasta promotie");
         }
 
-        return promotieRepository.save(promotie);
+        Promotie saved = promotieRepository.save(promotie);
+        log.debug("Produs {} dezasociat de promotia {}", produsId, promotieId);
+        return saved;
     }
 
     private void validateInterval(LocalDateTime dataStart, LocalDateTime dataFinal) {
