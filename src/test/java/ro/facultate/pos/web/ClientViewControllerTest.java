@@ -1,10 +1,15 @@
 package ro.facultate.pos.web;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
@@ -13,6 +18,7 @@ import ro.facultate.pos.service.ClientService;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
@@ -33,11 +39,44 @@ class ClientViewControllerTest {
         Client c = new Client();
         c.setId(1L);
         c.setNume("Maria");
-        Mockito.when(clientService.getAll()).thenReturn(List.of(c));
+        Mockito.when(clientService.getPage(Mockito.any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(c)));
 
         mockMvc.perform(get("/web/clienti"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("clienti/list"));
+    }
+
+    @Test
+    void list_defaultSort_usesNumeAscending() throws Exception {
+        Mockito.when(clientService.getPage(Mockito.any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/web/clienti"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        Mockito.verify(clientService).getPage(captor.capture());
+        Pageable used = captor.getValue();
+        assertEquals(0, used.getPageNumber());
+        assertEquals(5, used.getPageSize());
+        assertEquals(Sort.Direction.ASC, used.getSort().getOrderFor("nume").getDirection());
+    }
+
+    @Test
+    void list_customSortAndSize_buildsPageableCorrectly() throws Exception {
+        Mockito.when(clientService.getPage(Mockito.any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/web/clienti").param("page", "1").param("size", "10").param("sort", "email").param("dir", "desc"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        Mockito.verify(clientService).getPage(captor.capture());
+        Pageable used = captor.getValue();
+        assertEquals(1, used.getPageNumber());
+        assertEquals(10, used.getPageSize());
+        assertEquals(Sort.Direction.DESC, used.getSort().getOrderFor("email").getDirection());
     }
 
     @Test

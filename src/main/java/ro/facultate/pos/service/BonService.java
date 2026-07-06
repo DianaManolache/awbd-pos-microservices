@@ -2,6 +2,8 @@ package ro.facultate.pos.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -80,6 +82,10 @@ public class BonService {
 
     public List<Bon> getAll() {
         return bonRepository.findAll();
+    }
+
+    public Page<Bon> getPage(Pageable pageable) {
+        return bonRepository.findAll(pageable);
     }
 
     public Bon update(Long id, UpdateBonRequest req) {

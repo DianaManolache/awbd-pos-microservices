@@ -2,6 +2,8 @@ package ro.facultate.pos.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -54,6 +56,10 @@ public class ProdusService {
 
     public List<Produs> getAll() {
         return produsRepository.findAll();
+    }
+
+    public Page<Produs> getPage(Pageable pageable) {
+        return produsRepository.findAll(pageable);
     }
 
     public List<Produs> getByCategorie(Long categorieId) {
