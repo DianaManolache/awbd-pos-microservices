@@ -1,5 +1,7 @@
 package ro.facultate.pos.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,6 +37,8 @@ import java.time.LocalDateTime;
 @Service
 public class BonService {
 
+    private static final Logger log = LoggerFactory.getLogger(BonService.class);
+
     private final BonRepository bonRepository;
     private final ClientRepository clientRepository;
     private final VanzatorRepository vanzatorRepository;
@@ -69,7 +73,9 @@ public class BonService {
         bon.setClient(client);
         bon.setVanzator(vanzator);
 
-        return bonRepository.save(bon);
+        Bon saved = bonRepository.save(bon);
+        log.info("Bon creat cu id {} pentru clientul {} si vanzatorul {}", saved.getId(), client.getId(), vanzator.getId());
+        return saved;
     }
 
     public List<Bon> getAll() {
@@ -128,12 +134,14 @@ public class BonService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
 
         if (produs.getStoc() < req.getCantitate()) {
+            log.info("Adaugare produs {} pe bonul {} respinsa: stoc insuficient", req.getProdusId(), bonId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stoc insuficient");
         }
 
         //scade stocul
         produs.setStoc(produs.getStoc() - req.getCantitate());
         produsRepository.save(produs);
+        log.debug("Stoc produs {} redus la {} dupa adaugare pe bonul {}", produs.getId(), produs.getStoc(), bonId);
 
         BonProdus bp = new BonProdus();
         bp.setBon(bon);
@@ -141,7 +149,9 @@ public class BonService {
         bp.setCantitate(req.getCantitate());
         bp.setPretUnitar(produs.getPret());
 
-        return bonProdusRepository.save(bp);
+        BonProdus saved = bonProdusRepository.save(bp);
+        log.info("Produs {} adaugat pe bonul {} (cantitate {})", produs.getId(), bonId, req.getCantitate());
+        return saved;
     }
 
     public BonProdus updateBonProdus(Long bonId, Long bonProdusId, ro.facultate.pos.dto.UpdateBonProdusRequest req) {
@@ -266,10 +276,12 @@ public class BonService {
             //plata OK - inchidem bonul
             bon.setStatus(BonStatus.PAID);
             bonRepository.save(bon);
+            log.info("Bon {} platit ({}), suma {}", bonId, tipPlata, total);
 
             return plata;
 
         } catch (BusinessException e) {
+            log.info("Plata bonului {} respinsa: {}", bonId, e.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }

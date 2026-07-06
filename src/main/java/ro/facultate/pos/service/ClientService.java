@@ -1,5 +1,7 @@
 package ro.facultate.pos.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,6 +16,8 @@ import java.util.List;
 @Service
 public class ClientService {
 
+    private static final Logger log = LoggerFactory.getLogger(ClientService.class);
+
     private final ClientRepository clientRepository;
     private final BonRepository bonRepository;
 
@@ -27,7 +31,9 @@ public class ClientService {
         c.setNume(req.getNume());
         c.setEmail(req.getEmail());
         c.setTelefon(req.getTelefon());
-        return clientRepository.save(c);
+        Client saved = clientRepository.save(c);
+        log.info("Client creat cu id {}", saved.getId());
+        return saved;
     }
 
     public List<Client> getAll() {
@@ -44,14 +50,18 @@ public class ClientService {
         c.setNume(req.getNume());
         c.setEmail(req.getEmail());
         c.setTelefon(req.getTelefon());
-        return clientRepository.save(c);
+        Client saved = clientRepository.save(c);
+        log.info("Client actualizat cu id {}", saved.getId());
+        return saved;
     }
 
     public void delete(Long id) {
         Client c = getById(id);
         if (bonRepository.existsByClientId(id)) {
+            log.info("Stergere client {} respinsa: are bonuri asociate", id);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Clientul are bonuri asociate");
         }
         clientRepository.delete(c);
+        log.info("Client sters cu id {}", id);
     }
 }

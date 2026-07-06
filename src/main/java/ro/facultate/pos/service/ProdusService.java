@@ -1,5 +1,7 @@
 package ro.facultate.pos.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,6 +19,8 @@ import java.util.List;
 
 @Service
 public class ProdusService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProdusService.class);
 
     private final ProdusRepository produsRepository;
     private final CategorieRepository categorieRepository;
@@ -43,7 +47,9 @@ public class ProdusService {
         p.setStoc(req.getStoc());
         p.setCategorie(categorie);
 
-        return produsRepository.save(p);
+        Produs saved = produsRepository.save(p);
+        log.info("Produs creat cu id {} in categoria {}", saved.getId(), categorie.getId());
+        return saved;
     }
 
     public List<Produs> getAll() {
@@ -59,7 +65,9 @@ public class ProdusService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
 
         produs.setStoc(req.getStoc());
-        return produsRepository.save(produs);
+        Produs saved = produsRepository.save(produs);
+        log.debug("Stoc actualizat pentru produsul {}: {}", produsId, saved.getStoc());
+        return saved;
     }
 
     public Produs getById(Long id) {
@@ -78,19 +86,24 @@ public class ProdusService {
         produs.setStoc(req.getStoc());
         produs.setCategorie(categorie);
 
-        return produsRepository.save(produs);
+        Produs saved = produsRepository.save(produs);
+        log.info("Produs actualizat cu id {}", saved.getId());
+        return saved;
     }
 
     public void delete(Long id) {
         Produs produs = getById(id);
 
         if (bonProdusRepository.existsByProdusId(id)) {
+            log.info("Stergere produs {} respinsa: este pe cel putin un bon", id);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Produsul este pe cel putin un bon");
         }
         if (promotieRepository.existsByProduseId(id)) {
+            log.info("Stergere produs {} respinsa: este intr-o promotie activa", id);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Produsul este intr-o promotie activa");
         }
 
         produsRepository.delete(produs);
+        log.info("Produs sters cu id {}", id);
     }
 }
