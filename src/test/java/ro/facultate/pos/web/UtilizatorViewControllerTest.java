@@ -111,6 +111,17 @@ class UtilizatorViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(utilizatorService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizatorul nu exista"));
+
+        mockMvc.perform(get("/web/utilizatori/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/utilizatori"))
+                .andExpect(flash().attribute("businessError", "Utilizatorul nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         mockMvc.perform(post("/web/utilizatori/1")
                         .param("username", "")

@@ -34,8 +34,7 @@ public class PromotieViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("promotie", new CreatePromotieRequest());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/promotii");
+        populateFormModel(model, false, null);
         return "promotii/form";
     }
 
@@ -43,24 +42,28 @@ public class PromotieViewController {
     public String create(@Valid @ModelAttribute("promotie") CreatePromotieRequest promotie,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/promotii");
+            populateFormModel(model, false, null);
             return "promotii/form";
         }
         try {
             promotieService.create(promotie);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/promotii");
+            populateFormModel(model, false, null);
             return "promotii/form";
         }
         return "redirect:/web/promotii";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Promotie promotie = promotieService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Promotie promotie;
+        try {
+            promotie = promotieService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/promotii";
+        }
 
         UpdatePromotieRequest form = new UpdatePromotieRequest();
         form.setNume(promotie.getNume());
@@ -70,11 +73,7 @@ public class PromotieViewController {
         form.setActiva(promotie.getActiva());
 
         model.addAttribute("promotie", form);
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/promotii/" + id);
-        model.addAttribute("promotieId", id);
-        model.addAttribute("produseAsociate", promotie.getProduse());
-        model.addAttribute("produseDisponibile", produsService.getAll());
+        populateFormModel(model, true, id);
         return "promotii/form";
     }
 
@@ -83,27 +82,28 @@ public class PromotieViewController {
                           @Valid @ModelAttribute("promotie") UpdatePromotieRequest promotie,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            Promotie existing = promotieService.getById(id);
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/promotii/" + id);
-            model.addAttribute("promotieId", id);
-            model.addAttribute("produseAsociate", existing.getProduse());
-            model.addAttribute("produseDisponibile", produsService.getAll());
+            populateFormModel(model, true, id);
             return "promotii/form";
         }
         try {
             promotieService.update(id, promotie);
         } catch (ResponseStatusException e) {
-            Promotie existing = promotieService.getById(id);
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/promotii/" + id);
-            model.addAttribute("promotieId", id);
-            model.addAttribute("produseAsociate", existing.getProduse());
-            model.addAttribute("produseDisponibile", produsService.getAll());
+            populateFormModel(model, true, id);
             return "promotii/form";
         }
         return "redirect:/web/promotii";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/promotii/" + id : "/web/promotii");
+        if (isEdit) {
+            Promotie existing = promotieService.getById(id);
+            model.addAttribute("promotieId", id);
+            model.addAttribute("produseAsociate", existing.getProduse());
+            model.addAttribute("produseDisponibile", produsService.getAll());
+        }
     }
 
     @PostMapping("/{id}/delete")

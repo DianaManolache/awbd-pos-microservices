@@ -96,6 +96,17 @@ class CategorieViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(categorieService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoria nu exista"));
+
+        mockMvc.perform(get("/web/categorii/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/categorii"))
+                .andExpect(flash().attribute("businessError", "Categoria nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         mockMvc.perform(post("/web/categorii/1").param("nume", ""))
                 .andExpect(status().isOk())

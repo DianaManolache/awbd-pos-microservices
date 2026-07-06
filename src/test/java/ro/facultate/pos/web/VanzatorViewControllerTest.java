@@ -96,6 +96,17 @@ class VanzatorViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(vanzatorService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Vanzatorul nu exista"));
+
+        mockMvc.perform(get("/web/vanzatori/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/vanzatori"))
+                .andExpect(flash().attribute("businessError", "Vanzatorul nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         mockMvc.perform(post("/web/vanzatori/1").param("nume", ""))
                 .andExpect(status().isOk())

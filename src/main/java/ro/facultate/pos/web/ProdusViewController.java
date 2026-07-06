@@ -34,9 +34,7 @@ public class ProdusViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("produs", new CreateProdusRequest());
-        model.addAttribute("categorii", categorieService.getAll());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/produse");
+        populateFormModel(model, false, null);
         return "produse/form";
     }
 
@@ -44,26 +42,28 @@ public class ProdusViewController {
     public String create(@Valid @ModelAttribute("produs") CreateProdusRequest produs,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("categorii", categorieService.getAll());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/produse");
+            populateFormModel(model, false, null);
             return "produse/form";
         }
         try {
             produsService.create(produs);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("categorii", categorieService.getAll());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/produse");
+            populateFormModel(model, false, null);
             return "produse/form";
         }
         return "redirect:/web/produse";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Produs produs = produsService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Produs produs;
+        try {
+            produs = produsService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/produse";
+        }
 
         UpdateProdusRequest form = new UpdateProdusRequest();
         form.setNume(produs.getNume());
@@ -72,9 +72,7 @@ public class ProdusViewController {
         form.setCategorieId(produs.getCategorie().getId());
 
         model.addAttribute("produs", form);
-        model.addAttribute("categorii", categorieService.getAll());
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/produse/" + id);
+        populateFormModel(model, true, id);
         return "produse/form";
     }
 
@@ -83,21 +81,23 @@ public class ProdusViewController {
                           @Valid @ModelAttribute("produs") UpdateProdusRequest produs,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("categorii", categorieService.getAll());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/produse/" + id);
+            populateFormModel(model, true, id);
             return "produse/form";
         }
         try {
             produsService.update(id, produs);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("categorii", categorieService.getAll());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/produse/" + id);
+            populateFormModel(model, true, id);
             return "produse/form";
         }
         return "redirect:/web/produse";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        model.addAttribute("categorii", categorieService.getAll());
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/produse/" + id : "/web/produse");
     }
 
     @PostMapping("/{id}/delete")

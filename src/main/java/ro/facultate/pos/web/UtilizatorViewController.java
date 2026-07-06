@@ -35,10 +35,7 @@ public class UtilizatorViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("utilizator", new CreateUtilizatorRequest());
-        model.addAttribute("vanzatori", vanzatorService.getAll());
-        model.addAttribute("roluri", RolUtilizator.values());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/utilizatori");
+        populateFormModel(model, false, null);
         return "utilizatori/form";
     }
 
@@ -46,28 +43,28 @@ public class UtilizatorViewController {
     public String create(@Valid @ModelAttribute("utilizator") CreateUtilizatorRequest utilizator,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("vanzatori", vanzatorService.getAll());
-            model.addAttribute("roluri", RolUtilizator.values());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/utilizatori");
+            populateFormModel(model, false, null);
             return "utilizatori/form";
         }
         try {
             utilizatorService.create(utilizator);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("vanzatori", vanzatorService.getAll());
-            model.addAttribute("roluri", RolUtilizator.values());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/utilizatori");
+            populateFormModel(model, false, null);
             return "utilizatori/form";
         }
         return "redirect:/web/utilizatori";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Utilizator utilizator = utilizatorService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Utilizator utilizator;
+        try {
+            utilizator = utilizatorService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/utilizatori";
+        }
 
         UpdateUtilizatorRequest form = new UpdateUtilizatorRequest();
         form.setUsername(utilizator.getUsername());
@@ -75,9 +72,7 @@ public class UtilizatorViewController {
         form.setActiv(utilizator.getActiv());
 
         model.addAttribute("utilizator", form);
-        model.addAttribute("roluri", RolUtilizator.values());
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/utilizatori/" + id);
+        populateFormModel(model, true, id);
         return "utilizatori/form";
     }
 
@@ -86,21 +81,26 @@ public class UtilizatorViewController {
                           @Valid @ModelAttribute("utilizator") UpdateUtilizatorRequest utilizator,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("roluri", RolUtilizator.values());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/utilizatori/" + id);
+            populateFormModel(model, true, id);
             return "utilizatori/form";
         }
         try {
             utilizatorService.update(id, utilizator);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("roluri", RolUtilizator.values());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/utilizatori/" + id);
+            populateFormModel(model, true, id);
             return "utilizatori/form";
         }
         return "redirect:/web/utilizatori";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        if (!isEdit) {
+            model.addAttribute("vanzatori", vanzatorService.getAll());
+        }
+        model.addAttribute("roluri", RolUtilizator.values());
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/utilizatori/" + id : "/web/utilizatori");
     }
 
     @PostMapping("/{id}/delete")

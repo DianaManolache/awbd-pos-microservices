@@ -104,6 +104,17 @@ class ClientViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(clientService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Clientul nu exista"));
+
+        mockMvc.perform(get("/web/clienti/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/clienti"))
+                .andExpect(flash().attribute("businessError", "Clientul nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         mockMvc.perform(post("/web/clienti/1")
                         .param("nume", "")

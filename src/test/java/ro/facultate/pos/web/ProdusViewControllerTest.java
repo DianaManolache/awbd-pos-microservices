@@ -131,6 +131,17 @@ class ProdusViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(produsService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Produsul nu exista"));
+
+        mockMvc.perform(get("/web/produse/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/produse"))
+                .andExpect(flash().attribute("businessError", "Produsul nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         Mockito.when(categorieService.getAll()).thenReturn(List.of(new Categorie()));
 

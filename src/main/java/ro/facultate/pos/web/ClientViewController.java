@@ -31,8 +31,7 @@ public class ClientViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("client", new CreateClientRequest());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/clienti");
+        populateFormModel(model, false, null);
         return "clienti/form";
     }
 
@@ -40,24 +39,28 @@ public class ClientViewController {
     public String create(@Valid @ModelAttribute("client") CreateClientRequest client,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/clienti");
+            populateFormModel(model, false, null);
             return "clienti/form";
         }
         try {
             clientService.create(client);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/clienti");
+            populateFormModel(model, false, null);
             return "clienti/form";
         }
         return "redirect:/web/clienti";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Client client = clientService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Client client;
+        try {
+            client = clientService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/clienti";
+        }
 
         UpdateClientRequest form = new UpdateClientRequest();
         form.setNume(client.getNume());
@@ -65,8 +68,7 @@ public class ClientViewController {
         form.setTelefon(client.getTelefon());
 
         model.addAttribute("client", form);
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/clienti/" + id);
+        populateFormModel(model, true, id);
         return "clienti/form";
     }
 
@@ -75,19 +77,22 @@ public class ClientViewController {
                           @Valid @ModelAttribute("client") UpdateClientRequest client,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/clienti/" + id);
+            populateFormModel(model, true, id);
             return "clienti/form";
         }
         try {
             clientService.update(id, client);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/clienti/" + id);
+            populateFormModel(model, true, id);
             return "clienti/form";
         }
         return "redirect:/web/clienti";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/clienti/" + id : "/web/clienti");
     }
 
     @PostMapping("/{id}/delete")

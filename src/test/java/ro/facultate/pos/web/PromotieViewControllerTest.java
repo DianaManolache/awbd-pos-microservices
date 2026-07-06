@@ -94,6 +94,17 @@ class PromotieViewControllerTest {
     }
 
     @Test
+    void editForm_idNotFound_redirectsToListWithFlashMessage() throws Exception {
+        Mockito.when(promotieService.getById(99L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotia nu exista"));
+
+        mockMvc.perform(get("/web/promotii/99/edit"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/web/promotii"))
+                .andExpect(flash().attribute("businessError", "Promotia nu exista"));
+    }
+
+    @Test
     void update_invalid_rendersFormWithoutRedirect() throws Exception {
         Promotie existing = new Promotie();
         existing.setId(1L);

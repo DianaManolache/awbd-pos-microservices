@@ -31,8 +31,7 @@ public class CategorieViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("categorie", new CreateCategorieRequest());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/categorii");
+        populateFormModel(model, false, null);
         return "categorii/form";
     }
 
@@ -40,31 +39,34 @@ public class CategorieViewController {
     public String create(@Valid @ModelAttribute("categorie") CreateCategorieRequest categorie,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/categorii");
+            populateFormModel(model, false, null);
             return "categorii/form";
         }
         try {
             categorieService.create(categorie);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/categorii");
+            populateFormModel(model, false, null);
             return "categorii/form";
         }
         return "redirect:/web/categorii";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Categorie categorie = categorieService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Categorie categorie;
+        try {
+            categorie = categorieService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/categorii";
+        }
 
         UpdateCategorieRequest form = new UpdateCategorieRequest();
         form.setNume(categorie.getNume());
 
         model.addAttribute("categorie", form);
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/categorii/" + id);
+        populateFormModel(model, true, id);
         return "categorii/form";
     }
 
@@ -73,19 +75,22 @@ public class CategorieViewController {
                           @Valid @ModelAttribute("categorie") UpdateCategorieRequest categorie,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/categorii/" + id);
+            populateFormModel(model, true, id);
             return "categorii/form";
         }
         try {
             categorieService.update(id, categorie);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/categorii/" + id);
+            populateFormModel(model, true, id);
             return "categorii/form";
         }
         return "redirect:/web/categorii";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/categorii/" + id : "/web/categorii");
     }
 
     @PostMapping("/{id}/delete")

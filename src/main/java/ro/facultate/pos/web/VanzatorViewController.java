@@ -31,8 +31,7 @@ public class VanzatorViewController {
     @GetMapping("/new")
     public String newForm(Model model) {
         model.addAttribute("vanzator", new CreateVanzatorRequest());
-        model.addAttribute("isEdit", false);
-        model.addAttribute("formAction", "/web/vanzatori");
+        populateFormModel(model, false, null);
         return "vanzatori/form";
     }
 
@@ -40,31 +39,34 @@ public class VanzatorViewController {
     public String create(@Valid @ModelAttribute("vanzator") CreateVanzatorRequest vanzator,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/vanzatori");
+            populateFormModel(model, false, null);
             return "vanzatori/form";
         }
         try {
             vanzatorService.create(vanzator);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", false);
-            model.addAttribute("formAction", "/web/vanzatori");
+            populateFormModel(model, false, null);
             return "vanzatori/form";
         }
         return "redirect:/web/vanzatori";
     }
 
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        Vanzator vanzator = vanzatorService.getById(id);
+    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        Vanzator vanzator;
+        try {
+            vanzator = vanzatorService.getById(id);
+        } catch (ResponseStatusException e) {
+            redirectAttributes.addFlashAttribute("businessError", e.getReason());
+            return "redirect:/web/vanzatori";
+        }
 
         UpdateVanzatorRequest form = new UpdateVanzatorRequest();
         form.setNume(vanzator.getNume());
 
         model.addAttribute("vanzator", form);
-        model.addAttribute("isEdit", true);
-        model.addAttribute("formAction", "/web/vanzatori/" + id);
+        populateFormModel(model, true, id);
         return "vanzatori/form";
     }
 
@@ -73,19 +75,22 @@ public class VanzatorViewController {
                           @Valid @ModelAttribute("vanzator") UpdateVanzatorRequest vanzator,
                           BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/vanzatori/" + id);
+            populateFormModel(model, true, id);
             return "vanzatori/form";
         }
         try {
             vanzatorService.update(id, vanzator);
         } catch (ResponseStatusException e) {
             model.addAttribute("businessError", e.getReason());
-            model.addAttribute("isEdit", true);
-            model.addAttribute("formAction", "/web/vanzatori/" + id);
+            populateFormModel(model, true, id);
             return "vanzatori/form";
         }
         return "redirect:/web/vanzatori";
+    }
+
+    private void populateFormModel(Model model, boolean isEdit, Long id) {
+        model.addAttribute("isEdit", isEdit);
+        model.addAttribute("formAction", isEdit ? "/web/vanzatori/" + id : "/web/vanzatori");
     }
 
     @PostMapping("/{id}/delete")
