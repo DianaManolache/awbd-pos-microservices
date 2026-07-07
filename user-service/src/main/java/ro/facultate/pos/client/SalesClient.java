@@ -7,7 +7,7 @@ import ro.facultate.pos.dto.VanzatorResponse;
 import java.util.List;
 import java.util.Map;
 
-@FeignClient(name = "sales-service", url = "${sales-service.url}")
+@FeignClient(name = "sales-service")
 public interface SalesClient {
 
     @GetMapping("/api/vanzatori")

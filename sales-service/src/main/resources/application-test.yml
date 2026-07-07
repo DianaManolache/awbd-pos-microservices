@@ -13,7 +13,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
-catalog-service:
-  url: http://localhost:9999
-user-service:
-  url: http://localhost:9999
+eureka:
+  client:
+    enabled: false
