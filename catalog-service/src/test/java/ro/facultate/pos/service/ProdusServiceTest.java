@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.web.server.ResponseStatusException;
-import ro.facultate.pos.client.SalesClient;
+import ro.facultate.pos.client.SalesGateway;
 import ro.facultate.pos.dto.AjusteazaStocRequest;
 import ro.facultate.pos.dto.CreateProdusRequest;
 import ro.facultate.pos.dto.UpdateProdusRequest;
@@ -25,7 +25,7 @@ class ProdusServiceTest {
 
     private ProdusRepository produsRepository;
     private CategorieRepository categorieRepository;
-    private SalesClient salesClient;
+    private SalesGateway salesClient;
     private PromotieRepository promotieRepository;
     private ProdusService produsService;
 
@@ -33,7 +33,7 @@ class ProdusServiceTest {
     void setUp() {
         produsRepository = Mockito.mock(ProdusRepository.class);
         categorieRepository = Mockito.mock(CategorieRepository.class);
-        salesClient = Mockito.mock(SalesClient.class);
+        salesClient = Mockito.mock(SalesGateway.class);
         promotieRepository = Mockito.mock(PromotieRepository.class);
         produsService = new ProdusService(produsRepository, categorieRepository, promotieRepository, salesClient);
     }

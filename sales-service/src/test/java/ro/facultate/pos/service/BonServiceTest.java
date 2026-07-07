@@ -4,7 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import ro.facultate.pos.client.CatalogClient;
+import ro.facultate.pos.client.CatalogGateway;
 import ro.facultate.pos.dto.AddBonProdusRequest;
 import ro.facultate.pos.dto.ProdusResponse;
 import ro.facultate.pos.dto.UpdateBonRequest;
@@ -29,7 +29,7 @@ class BonServiceTest {
     private VanzatorRepository vanzatorRepository;
     private BonProdusRepository bonProdusRepository;
     private PlataRepository plataRepository;
-    private CatalogClient catalogClient;
+    private CatalogGateway catalogClient;
 
     private BonService bonService;
 
@@ -40,7 +40,7 @@ class BonServiceTest {
         vanzatorRepository = Mockito.mock(VanzatorRepository.class);
         bonProdusRepository = Mockito.mock(BonProdusRepository.class);
         plataRepository = Mockito.mock(PlataRepository.class);
-        catalogClient = Mockito.mock(CatalogClient.class);
+        catalogClient = Mockito.mock(CatalogGateway.class);
 
         bonService = new BonService(
                 bonRepository,
