@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ro.facultate.pos.client.CatalogClient;
 import ro.facultate.pos.dto.*;
+import ro.facultate.pos.messaging.NotificationEventPublisher;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +39,9 @@ class SalesFlowIntegrationTest {
 
     @MockBean
     private CatalogClient catalogClient;
+
+    @MockBean
+    private NotificationEventPublisher notificationEventPublisher;
 
     private Long createClient(String nume) throws Exception {
         CreateClientRequest req = new CreateClientRequest();

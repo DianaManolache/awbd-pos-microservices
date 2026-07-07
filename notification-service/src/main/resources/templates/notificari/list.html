@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Notificari')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1 class="mb-4">Notificari</h1>
+    <p class="text-muted">Generate automat din evenimente de business (plata bon, stoc epuizat) - doar afisare.</p>
+
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Primita la</th>
+            <th>Tip</th>
+            <th>Mesaj</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="n : ${notificariPage.content}">
+            <td th:text="${n.primitaLa}"></td>
+            <td th:text="${n.tip}"></td>
+            <td th:text="${n.mesaj}"></td>
+        </tr>
+        <tr th:if="${notificariPage.empty}">
+            <td colspan="3" class="text-muted">Nicio notificare inregistrata inca.</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <nav th:if="${notificariPage.totalPages > 1}">
+        <ul class="pagination">
+            <li class="page-item" th:classappend="${notificariPage.first} ? 'disabled'">
+                <a class="page-link" th:href="@{/web/notificari(page=${notificariPage.number - 1},size=${size})}">Anterior</a>
+            </li>
+            <li class="page-item" th:each="i : ${#numbers.sequence(0, notificariPage.totalPages - 1)}" th:classappend="${i == notificariPage.number} ? 'active'">
+                <a class="page-link" th:href="@{/web/notificari(page=${i},size=${size})}" th:text="${i + 1}"></a>
+            </li>
+            <li class="page-item" th:classappend="${notificariPage.last} ? 'disabled'">
+                <a class="page-link" th:href="@{/web/notificari(page=${notificariPage.number + 1},size=${size})}">Urmator</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+</body>
+</html>

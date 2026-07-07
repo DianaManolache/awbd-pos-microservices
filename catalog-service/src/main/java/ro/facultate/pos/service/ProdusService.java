@@ -14,6 +14,8 @@ import ro.facultate.pos.dto.UpdateProdusRequest;
 import ro.facultate.pos.dto.UpdateStocRequest;
 import ro.facultate.pos.entity.Categorie;
 import ro.facultate.pos.entity.Produs;
+import ro.facultate.pos.event.StocEpuizatEvent;
+import ro.facultate.pos.messaging.NotificationEventPublisher;
 import ro.facultate.pos.repository.CategorieRepository;
 import ro.facultate.pos.repository.ProdusRepository;
 import ro.facultate.pos.repository.PromotieRepository;
@@ -29,15 +31,18 @@ public class ProdusService {
     private final CategorieRepository categorieRepository;
     private final PromotieRepository promotieRepository;
     private final SalesGateway salesClient;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public ProdusService(ProdusRepository produsRepository,
                           CategorieRepository categorieRepository,
                           PromotieRepository promotieRepository,
-                          SalesGateway salesClient) {
+                          SalesGateway salesClient,
+                          NotificationEventPublisher notificationEventPublisher) {
         this.produsRepository = produsRepository;
         this.categorieRepository = categorieRepository;
         this.promotieRepository = promotieRepository;
         this.salesClient = salesClient;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     public Produs create(CreateProdusRequest req) {
@@ -74,6 +79,7 @@ public class ProdusService {
         produs.setStoc(req.getStoc());
         Produs saved = produsRepository.save(produs);
         log.debug("Stoc actualizat pentru produsul {}: {}", produsId, saved.getStoc());
+        notificaDacaStocEpuizat(saved);
         return saved;
     }
 
@@ -90,7 +96,15 @@ public class ProdusService {
         produs.setStoc(stocNou);
         Produs saved = produsRepository.save(produs);
         log.debug("Stoc produs {} ajustat cu {} -> {}", produsId, req.getDelta(), saved.getStoc());
+        notificaDacaStocEpuizat(saved);
         return saved;
+    }
+
+    private void notificaDacaStocEpuizat(Produs produs) {
+        if (produs.getStoc() == 0) {
+            notificationEventPublisher.publishStocEpuizat(
+                    new StocEpuizatEvent(produs.getId(), produs.getNume(), produs.getStoc()));
+        }
     }
 
     public Produs getById(Long id) {

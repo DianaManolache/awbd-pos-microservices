@@ -27,6 +27,8 @@ import ro.facultate.pos.dto.BonDetailsResponse;
 import ro.facultate.pos.dto.BonProdusLineResponse;
 import ro.facultate.pos.entity.Plata;
 import ro.facultate.pos.entity.enums.StatusPlata;
+import ro.facultate.pos.event.BonPlatitEvent;
+import ro.facultate.pos.messaging.NotificationEventPublisher;
 import ro.facultate.pos.repository.PlataRepository;
 
 import java.math.BigDecimal;
@@ -46,18 +48,21 @@ public class BonService {
     private final BonProdusRepository bonProdusRepository;
     private final PlataRepository plataRepository;
     private final CatalogGateway catalogClient;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public BonService(BonRepository bonRepository,
                       ClientRepository clientRepository,
                       VanzatorRepository vanzatorRepository,
                       BonProdusRepository bonProdusRepository,
                       PlataRepository plataRepository,
-                      CatalogGateway catalogClient) {
+                      CatalogGateway catalogClient,
+                      NotificationEventPublisher notificationEventPublisher) {
         this.bonRepository = bonRepository;
         this.clientRepository = clientRepository;
         this.vanzatorRepository = vanzatorRepository;
         this.bonProdusRepository = bonProdusRepository;
         this.plataRepository = plataRepository;
+        this.notificationEventPublisher = notificationEventPublisher;
         this.catalogClient = catalogClient;
     }
 
@@ -285,6 +290,10 @@ public class BonService {
             bon.setStatus(BonStatus.PAID);
             bonRepository.save(bon);
             log.info("Bon {} platit ({}), suma {}", bonId, tipPlata, total);
+
+            notificationEventPublisher.publishBonPlatit(new BonPlatitEvent(
+                    bon.getId(), bon.getClient().getId(), bon.getVanzator().getId(),
+                    total, tipPlata.name(), plata.getData()));
 
             return plata;
 

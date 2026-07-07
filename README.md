@@ -294,7 +294,7 @@ Aplicatia a fost impartita in 4 microservicii independente, organizate ca monore
 | **catalog-service** | 8081 | Categorie, Produs, Promotie | `/web/categorii`, `/web/produse`, `/web/promotii` | Postgres propriu (`catalog_db`) |
 | **sales-service** | 8082 | Client, Vanzator, Bon, BonProdus, Plata | `/web/bonuri`, `/web/clienti`, `/web/vanzatori` | Postgres propriu (`sales_db`) |
 | **user-service** | 8083 | Utilizator + Spring Security | `/web/utilizatori`, `/login` | Postgres propriu (`user_db`) |
-| **notification-service** | 8084 | (schelet, fara logica inca) | - | - |
+| **notification-service** | 8084 | Notificare | `/web/notificari` (doar afisare) | MongoDB propriu (`notification_db`) |
 | **eureka-server** | 8761 | - | - | - |
 | **config-server** | 8888 | - | - | - |
 
@@ -380,6 +380,17 @@ Toate apelurile Sales <-> Catalog (ambele directii) trec printr-un wrapper dedic
 
 Verificat live: cu Catalog picat, primele 2-3 apeluri de la Sales dureaza ~1s (timeout real de conexiune) inainte ca circuitul sa se deschida; apelurile ulterioare raspund in ~5ms (fail-fast), confirmate prin `GET /actuator/circuitbreakers` care arata starea `OPEN` si `notPermittedCalls` crescand. Testat si ciclul complet OPEN -> HALF_OPEN (dupa `wait-duration-in-open-state`) -> probe de test -> inapoi in OPEN cand serviciul e inca picat.
 
+### Mesagerie (RabbitMQ + MongoDB)
+`notification-service` a fost construit din schelet: un consumator asincron de evenimente de business, fara niciun apel sincron (Feign) catre alt serviciu. Rulare locala: RabbitMQ si MongoDB instalate prin Homebrew (`brew services start rabbitmq` / `mongodb-community`), nu Docker (rezervat pentru sub-proiectul de deployment).
+
+- **Topologie**: un exchange topic `pos.events`, declarat idempotent de fiecare producator (`sales-service`, `catalog-service`). `notification-service`, singurul consumator, detine cozile: `notificari.bon-platit` (routing key `bon.platit`) si `notificari.stoc-epuizat` (routing key `produs.stoc-epuizat`).
+- **Producatori**: `sales-service` publica `bon.platit` cand `BonService.payBon()` reuseste (bonId, clientId, vanzatorId, total, tipPlata); `catalog-service` publica `produs.stoc-epuizat` cand un ajustare/actualizare de stoc (`ProdusService`) duce stocul exact la 0.
+- **Consumator**: doua metode `@RabbitListener`, cate una per coada, salveaza fiecare eveniment ca document in colectia MongoDB `notificari` (tip, mesaj, detalii, data primirii) - fara logica suplimentara (fara email, fara alt procesare).
+- **Dead-letter queue**: fiecare coada are `x-dead-letter-exchange` catre `pos.events.dlx` -> `pos.events.dlq`, iar `spring.rabbitmq.listener.simple.default-requeue-rejected=false` face ca o exceptie in listener sa respinga mesajul direct catre DLQ, fara reincercare in bucla infinita. Verificat live: cu MongoDB picat, mesajul ramane "in zbor" cat asteapta driverul Mongo timeout-ul de selectie a serverului (~30s), apoi ajunge exact in `pos.events.dlq`.
+- **Expunere read-only**: `GET /api/notificari` (paginat) si `GET /web/notificari` - fara create/edit/delete, notificarile sunt generate exclusiv din evenimente. Ambele protejate cu JWT (acelasi resource-server stateless ca Catalog/Sales din sub-proiectul de securitate distribuita).
+
+Verificat live, cu toate cele 7 servicii ruland simultan: plata unui bon si epuizarea stocului unui produs (prin fluxul normal, prin Gateway) au generat ambele notificari in MongoDB, vizibile atat direct pe `notification-service` cat si prin Gateway, pe API si pe pagina web; acces anonim respins cu 401.
+
 ### In afara scopului acestor sub-proiecte
-Mesagerie (RabbitMQ), caching (Redis), monitorizare (Prometheus/Grafana/Zipkin) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
+Caching (Redis) si monitorizare (Prometheus/Grafana/Zipkin) sunt planificate in sub-proiecte ulterioare.
 
