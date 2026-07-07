@@ -281,7 +281,7 @@ Autentificare si autorizare bazate pe roluri, implementate cu Spring Security.
 - `SalesFlowIntegrationTest` (test de integrare end-to-end pe API) ruleaza cu `@WithMockUser(roles = "ADMIN")`
 - `SecurityIntegrationTest` - teste dedicate, pe context Spring Boot complet, cu utilizatori reali salvati cu parola criptata: acces anonim la pagini protejate (redirect la login), acces anonim la API (401), rol gresit pe pagina de administrare (403), rol corect (200), login cu credentiale corecte/incorecte/inexistente, logout
 
-> **Notă (Partea II):** sectiunea de mai sus descrie Spring Security asa cum a fost implementat in monolit (Partea I). Dupa spargerea in microservicii (vezi sectiunea "Arhitectura microservicii" de mai jos), Security ramane deliberat doar in `user-service` pentru sub-proiectul curent, scopat la ce serveste efectiv acest modul (`/web/utilizatori/**`, `/api/**`); `catalog-service` si `sales-service` nu au Security in acest sub-proiect. Autentificarea distribuita intre toate serviciile (JWT emis de Gateway) e planificata intr-un sub-proiect ulterior.
+> **Notă (Partea II):** sectiunea de mai sus descrie Spring Security asa cum a fost implementat in monolit (Partea I). Dupa spargerea in microservicii (vezi sectiunea "Arhitectura microservicii" de mai jos), autentificarea prin sesiune/formular ramane doar in `user-service`; `catalog-service` si `sales-service` au fost adaugate ca resource server-e JWT stateless in sub-proiectul de "Securitate distribuita" (vezi mai jos).
 
 ---
 
@@ -320,6 +320,30 @@ Toate cele 4 fluxuri de mai sus au fost verificate manual, live, cu cele 3 servi
 - Fiecare serviciu importa configurarea la pornire prin `spring.config.import=optional:configserver:http://localhost:8888` (prefixul `optional:` face ca serviciul sa porneasca normal si daca Config Server nu e disponibil, folosind orice configurare locala ramasa)
 - **Refresh dinamic fara restart**: fiecare serviciu expune `POST /actuator/refresh`; orice bean adnotat `@RefreshScope` isi reincarca valorile din Config Server la apelul acestui endpoint, fara sa fie nevoie de restart. Demonstrat concret in `catalog-service` cu `ConfigDemoController` (`GET /api/config-demo`, proprietatea `app.mesaj-bun-venit`): se modifica valoarea in config-repo, se apeleaza `/actuator/refresh`, si endpoint-ul raspunde imediat cu noua valoare, fara restart.
 
+### API Gateway (Spring Cloud Gateway)
+- `api-gateway` (port 8080) - singurul punct de intrare public; toate cererile de browser/client catre `/web/**` si `/api/**` trec prin el, rutate catre serviciul potrivit prin nume (`lb://catalog-service`, `lb://sales-service`, `lb://user-service`), rezolvat prin Eureka + Spring Cloud LoadBalancer
+- Rutare pe domeniu: `/web/categorii,produse,promotii` + `/api/categorii,produse,promotii` -> Catalog; `/web/bonuri,clienti,vanzatori` + `/api/bons,clients,vanzatori` -> Sales; `/`, `/login`, `/web/utilizatori` + `/api/utilizatori` -> User
+- **Rate limiting**: filtru `RequestRateLimiter` cu o implementare proprie in memorie (`InMemoryRateLimiter`, fereastra fixa: 20 cereri / 10 secunde per adresa IP) - `RedisRateLimiter`-ul din cutie ar necesita Redis, care vine abia in sub-proiectul de caching; testat live cu peste 20 de cereri consecutive, confirmand raspuns `429 Too Many Requests` dupa atingerea limitei
+- **Request/response filtering**: `LoggingGlobalFilter` adauga un header de corelare (`X-Correlation-Id`) pe cerere si pe raspuns (generat daca nu exista deja) si logheaza fiecare cerere/raspuns care trece prin Gateway
+- **Load balancing**: pentru a demonstra distribuirea intre instante multiple, se pot porni 2 instante de Catalog Service sub acelasi nume in Eureka (`--server.port=8091` pentru a doua) - cererile prin Gateway catre `/api/produse` alterneaza intre cele doua instante (verificat live prin log-urile ambelor instante)
+- Rutele active pot fi inspectate live la `GET /actuator/gateway/routes`
+
+Pornire instanta secundara de Catalog Service (pentru demo de load balancing):
+```bash
+./mvnw -pl catalog-service spring-boot:run -Dspring-boot.run.arguments="--server.port=8091"
+```
+
+### Securitate distribuita (JWT)
+`user-service` este singurul serviciu cu formular de login si sesiune HTTP; `catalog-service` si `sales-service` nu au (si nu au avut vreodata) niciun mecanism de sesiune propriu. Fluxul de identitate ales:
+
+- La login cu succes, un `AuthenticationSuccessHandler` propriu (`JwtCookieAuthenticationSuccessHandler`) emite un JWT (subiect = username, claim `rol`, expirare 15 minute, semnat HMAC cu o cheie partajata prin Config Server) si il seteaza ca al doilea cookie, `AUTH_TOKEN` (`HttpOnly`, alaturi de `JSESSIONID`).
+- Gateway-ul citeste acest cookie pe fiecare cerere (`JwtForwardingGlobalFilter`) si il retransmite ca header `Authorization: Bearer <token>` catre serviciul din spate - clientul (browser) nu vede si nu manipuleaza niciodata tokenul direct ca header.
+- `catalog-service` si `sales-service` au primit cate un `SecurityConfig` complet nou: resource server JWT **stateless** (`SessionCreationPolicy.STATELESS`, fara CSRF, fara formular de login), cu reguli de autorizare pe rol identice cu cele existente deja pe partea de `/web/**` (ex. `/web/produse/**` -> `ADMIN`, `/web/bonuri/**` -> `USER`/`ADMIN`).
+- Propagarea identitatii intre apelurile interne Feign (Sales -> Catalog, Sales -> User, Catalog -> Sales, User -> Sales) se face printr-un `FeignAuthInterceptor` care copiaza header-ul `Authorization` al cererii curente pe cererea Feign iesita; pentru singurul apel fara context HTTP (crearea vanzatorului ADMIN la pornire, in `AdminSeeder`), interceptorul emite el insusi un token temporar de sistem (`system-bootstrap`/`ADMIN`) in loc sa lase acel endpoint permanent deschis fara autentificare.
+- Acces anonim sau cu token invalid/expirat/falsificat la orice serviciu (direct sau prin Gateway) primeste `401 Unauthorized` (`AuthenticationEntryPoint` explicit configurat pe `catalog-service`/`sales-service` - fara el, Spring Security raspunde implicit cu `403` si pentru cereri neautentificate, nu doar pentru rol gresit).
+
+Verificat live, cu toate cele 6 servicii ruland simultan: login prin Gateway seteaza `AUTH_TOKEN`; acces direct (fara Gateway) la Catalog/Sales fara token e respins cu 401; acces prin Gateway cu cookie-ul de admin functioneaza pe toate rutele protejate (`/api/categorii`, `/web/produse`, `/web/bonuri`, `/web/clienti`); token falsificat e respins cu 401; fluxul complet de vanzare (categorie -> produs -> client -> bon -> adaugare produs pe bon -> plata) functioneaza integral prin Gateway, incluzand apelul Feign Sales -> Catalog pentru pretul produsului, cu tokenul propagat corect.
+
 ### Schimbari de model de date fata de monolit
 Relatiile JPA care traversau granita noii separari pe servicii nu mai pot fi relatii `@ManyToOne`/`@OneToOne` (baze de date diferite):
 - `BonProdus.produs` (Sales) -> `produsId: Long` + `produsNume: String` (denormalizat la creare, la fel ca `pretUnitar`, pentru a evita un apel Feign doar pentru afisare)
@@ -333,17 +357,18 @@ CREATE DATABASE sales_db;
 CREATE DATABASE user_db;
 ```
 
-Pornire (5 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business:
+Pornire (6 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business, apoi Gateway-ul:
 ```bash
 ./mvnw -pl eureka-server spring-boot:run
 ./mvnw -pl config-server spring-boot:run
 ./mvnw -pl catalog-service spring-boot:run
 ./mvnw -pl sales-service spring-boot:run
 ./mvnw -pl user-service spring-boot:run
+./mvnw -pl api-gateway spring-boot:run
 ```
 
-La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`.
+La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`. Aplicatia completa e accesibila prin Gateway la `http://localhost:8080`.
 
 ### In afara scopului acestor sub-proiecte
-API Gateway, load balancing cu instante multiple, securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
+Resilience4j, mesagerie (RabbitMQ), caching (Redis), monitorizare (Prometheus/Grafana/Zipkin) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
 
