@@ -2,6 +2,8 @@ package ro.facultate.pos.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,6 +20,8 @@ import java.util.List;
 @Service
 public class PromotieService {
 
+    private static final String CACHE = "promotii";
+
     private static final Logger log = LoggerFactory.getLogger(PromotieService.class);
 
     private final PromotieRepository promotieRepository;
@@ -28,6 +32,7 @@ public class PromotieService {
         this.produsRepository = produsRepository;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Promotie create(CreatePromotieRequest req) {
         validateInterval(req.getDataStart(), req.getDataFinal());
 
@@ -43,15 +48,18 @@ public class PromotieService {
         return saved;
     }
 
+    @Cacheable(value = CACHE, key = "'all'")
     public List<Promotie> getAll() {
         return promotieRepository.findAll();
     }
 
+    @Cacheable(value = CACHE, key = "#id")
     public Promotie getById(Long id) {
         return promotieRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotie not found"));
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Promotie update(Long id, UpdatePromotieRequest req) {
         validateInterval(req.getDataStart(), req.getDataFinal());
 
@@ -67,12 +75,14 @@ public class PromotieService {
         return saved;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public void delete(Long id) {
         Promotie p = getById(id);
         promotieRepository.delete(p);
         log.info("Promotie stearsa cu id {}", id);
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Promotie addProdus(Long promotieId, Long produsId) {
         Promotie promotie = getById(promotieId);
         Produs produs = produsRepository.findById(produsId)
@@ -89,6 +99,7 @@ public class PromotieService {
         return saved;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Promotie removeProdus(Long promotieId, Long produsId) {
         Promotie promotie = getById(promotieId);
         Produs produs = produsRepository.findById(produsId)
