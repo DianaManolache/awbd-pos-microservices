@@ -320,6 +320,19 @@ Toate cele 4 fluxuri de mai sus au fost verificate manual, live, cu cele 3 servi
 - Fiecare serviciu importa configurarea la pornire prin `spring.config.import=optional:configserver:http://localhost:8888` (prefixul `optional:` face ca serviciul sa porneasca normal si daca Config Server nu e disponibil, folosind orice configurare locala ramasa)
 - **Refresh dinamic fara restart**: fiecare serviciu expune `POST /actuator/refresh`; orice bean adnotat `@RefreshScope` isi reincarca valorile din Config Server la apelul acestui endpoint, fara sa fie nevoie de restart. Demonstrat concret in `catalog-service` cu `ConfigDemoController` (`GET /api/config-demo`, proprietatea `app.mesaj-bun-venit`): se modifica valoarea in config-repo, se apeleaza `/actuator/refresh`, si endpoint-ul raspunde imediat cu noua valoare, fara restart.
 
+### API Gateway (Spring Cloud Gateway)
+- `api-gateway` (port 8080) - singurul punct de intrare public; toate cererile de browser/client catre `/web/**` si `/api/**` trec prin el, rutate catre serviciul potrivit prin nume (`lb://catalog-service`, `lb://sales-service`, `lb://user-service`), rezolvat prin Eureka + Spring Cloud LoadBalancer
+- Rutare pe domeniu: `/web/categorii,produse,promotii` + `/api/categorii,produse,promotii` -> Catalog; `/web/bonuri,clienti,vanzatori` + `/api/bons,clients,vanzatori` -> Sales; `/`, `/login`, `/web/utilizatori` + `/api/utilizatori` -> User
+- **Rate limiting**: filtru `RequestRateLimiter` cu o implementare proprie in memorie (`InMemoryRateLimiter`, fereastra fixa: 20 cereri / 10 secunde per adresa IP) - `RedisRateLimiter`-ul din cutie ar necesita Redis, care vine abia in sub-proiectul de caching; testat live cu peste 20 de cereri consecutive, confirmand raspuns `429 Too Many Requests` dupa atingerea limitei
+- **Request/response filtering**: `LoggingGlobalFilter` adauga un header de corelare (`X-Correlation-Id`) pe cerere si pe raspuns (generat daca nu exista deja) si logheaza fiecare cerere/raspuns care trece prin Gateway
+- **Load balancing**: pentru a demonstra distribuirea intre instante multiple, se pot porni 2 instante de Catalog Service sub acelasi nume in Eureka (`--server.port=8091` pentru a doua) - cererile prin Gateway catre `/api/produse` alterneaza intre cele doua instante (verificat live prin log-urile ambelor instante)
+- Rutele active pot fi inspectate live la `GET /actuator/gateway/routes`
+
+Pornire instanta secundara de Catalog Service (pentru demo de load balancing):
+```bash
+./mvnw -pl catalog-service spring-boot:run -Dspring-boot.run.arguments="--server.port=8091"
+```
+
 ### Schimbari de model de date fata de monolit
 Relatiile JPA care traversau granita noii separari pe servicii nu mai pot fi relatii `@ManyToOne`/`@OneToOne` (baze de date diferite):
 - `BonProdus.produs` (Sales) -> `produsId: Long` + `produsNume: String` (denormalizat la creare, la fel ca `pretUnitar`, pentru a evita un apel Feign doar pentru afisare)
@@ -333,17 +346,18 @@ CREATE DATABASE sales_db;
 CREATE DATABASE user_db;
 ```
 
-Pornire (5 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business:
+Pornire (6 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business, apoi Gateway-ul:
 ```bash
 ./mvnw -pl eureka-server spring-boot:run
 ./mvnw -pl config-server spring-boot:run
 ./mvnw -pl catalog-service spring-boot:run
 ./mvnw -pl sales-service spring-boot:run
 ./mvnw -pl user-service spring-boot:run
+./mvnw -pl api-gateway spring-boot:run
 ```
 
-La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`.
+La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`. Aplicatia completa e accesibila prin Gateway la `http://localhost:8080`.
 
 ### In afara scopului acestor sub-proiecte
-API Gateway, load balancing cu instante multiple, securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
+Securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ), caching (Redis) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
 

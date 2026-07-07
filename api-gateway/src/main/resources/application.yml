@@ -1,0 +1,55 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+          routes:
+            - id: catalog-web
+              uri: lb://catalog-service
+              predicates:
+                - Path=/web/categorii/**,/web/produse/**,/web/promotii/**
+            - id: catalog-api
+              uri: lb://catalog-service
+              predicates:
+                - Path=/api/categorii/**,/api/produse/**,/api/promotii/**
+            - id: sales-web
+              uri: lb://sales-service
+              predicates:
+                - Path=/web/bonuri/**,/web/clienti/**,/web/vanzatori/**
+            - id: sales-api
+              uri: lb://sales-service
+              predicates:
+                - Path=/api/bons/**,/api/clients/**,/api/vanzatori/**
+            - id: user-web
+              uri: lb://user-service
+              predicates:
+                - Path=/,/login,/logout,/web/utilizatori/**
+            - id: user-api
+              uri: lb://user-service
+              predicates:
+                - Path=/api/utilizatori/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoint:
+    gateway:
+      access: unrestricted
+  endpoints:
+    web:
+      exposure:
+        include: gateway,health,info
