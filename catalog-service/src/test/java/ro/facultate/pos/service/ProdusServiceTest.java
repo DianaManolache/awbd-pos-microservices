@@ -6,6 +6,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.web.server.ResponseStatusException;
 import ro.facultate.pos.client.SalesGateway;
+import ro.facultate.pos.messaging.NotificationEventPublisher;
 import ro.facultate.pos.dto.AjusteazaStocRequest;
 import ro.facultate.pos.dto.CreateProdusRequest;
 import ro.facultate.pos.dto.UpdateProdusRequest;
@@ -27,6 +28,7 @@ class ProdusServiceTest {
     private CategorieRepository categorieRepository;
     private SalesGateway salesClient;
     private PromotieRepository promotieRepository;
+    private NotificationEventPublisher notificationEventPublisher;
     private ProdusService produsService;
 
     @BeforeEach
@@ -35,7 +37,8 @@ class ProdusServiceTest {
         categorieRepository = Mockito.mock(CategorieRepository.class);
         salesClient = Mockito.mock(SalesGateway.class);
         promotieRepository = Mockito.mock(PromotieRepository.class);
-        produsService = new ProdusService(produsRepository, categorieRepository, promotieRepository, salesClient);
+        notificationEventPublisher = Mockito.mock(NotificationEventPublisher.class);
+        produsService = new ProdusService(produsRepository, categorieRepository, promotieRepository, salesClient, notificationEventPublisher);
     }
 
     @Test
@@ -229,5 +232,43 @@ class ProdusServiceTest {
                 () -> produsService.ajusteazaStoc(1L, req));
 
         assertEquals(400, ex.getStatusCode().value());
+    }
+
+    @Test
+    void ajusteazaStoc_stocAjungeLaZero_publicaEvenimentStocEpuizat() {
+        Produs p = new Produs();
+        p.setId(1L);
+        p.setNume("Paine");
+        p.setStoc(3);
+        Mockito.when(produsRepository.findById(1L)).thenReturn(Optional.of(p));
+        Mockito.when(produsRepository.save(Mockito.any(Produs.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AjusteazaStocRequest req = new AjusteazaStocRequest();
+        req.setDelta(-3);
+
+        produsService.ajusteazaStoc(1L, req);
+
+        ArgumentCaptor<ro.facultate.pos.event.StocEpuizatEvent> captor =
+                ArgumentCaptor.forClass(ro.facultate.pos.event.StocEpuizatEvent.class);
+        Mockito.verify(notificationEventPublisher).publishStocEpuizat(captor.capture());
+        assertEquals(1L, captor.getValue().getProdusId());
+        assertEquals("Paine", captor.getValue().getNume());
+        assertEquals(0, captor.getValue().getStoc());
+    }
+
+    @Test
+    void ajusteazaStoc_stocRamanePozitiv_nuPublicaEvenimentStocEpuizat() {
+        Produs p = new Produs();
+        p.setId(1L);
+        p.setStoc(10);
+        Mockito.when(produsRepository.findById(1L)).thenReturn(Optional.of(p));
+        Mockito.when(produsRepository.save(Mockito.any(Produs.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AjusteazaStocRequest req = new AjusteazaStocRequest();
+        req.setDelta(-3);
+
+        produsService.ajusteazaStoc(1L, req);
+
+        Mockito.verify(notificationEventPublisher, Mockito.never()).publishStocEpuizat(Mockito.any());
     }
 }

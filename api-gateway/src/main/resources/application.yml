@@ -37,6 +37,14 @@ spring:
               uri: lb://user-service
               predicates:
                 - Path=/api/utilizatori/**
+            - id: notification-web
+              uri: lb://notification-service
+              predicates:
+                - Path=/web/notificari/**
+            - id: notification-api
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/notificari/**
 
 eureka:
   client:

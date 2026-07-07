@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import ro.facultate.pos.client.CatalogGateway;
+import ro.facultate.pos.messaging.NotificationEventPublisher;
 import ro.facultate.pos.dto.AddBonProdusRequest;
 import ro.facultate.pos.dto.ProdusResponse;
 import ro.facultate.pos.dto.UpdateBonRequest;
@@ -30,6 +31,7 @@ class BonServiceTest {
     private BonProdusRepository bonProdusRepository;
     private PlataRepository plataRepository;
     private CatalogGateway catalogClient;
+    private NotificationEventPublisher notificationEventPublisher;
 
     private BonService bonService;
 
@@ -41,6 +43,7 @@ class BonServiceTest {
         bonProdusRepository = Mockito.mock(BonProdusRepository.class);
         plataRepository = Mockito.mock(PlataRepository.class);
         catalogClient = Mockito.mock(CatalogGateway.class);
+        notificationEventPublisher = Mockito.mock(NotificationEventPublisher.class);
 
         bonService = new BonService(
                 bonRepository,
@@ -48,7 +51,8 @@ class BonServiceTest {
                 vanzatorRepository,
                 bonProdusRepository,
                 plataRepository,
-                catalogClient
+                catalogClient,
+                notificationEventPublisher
         );
     }
 
@@ -126,9 +130,17 @@ class BonServiceTest {
 
     @Test
     void payBon_shouldCreatePayment_andMarkBonPaid() {
+        Client client = new Client();
+        client.setId(5L);
+
+        Vanzator vanzator = new Vanzator();
+        vanzator.setId(7L);
+
         Bon bon = new Bon();
         bon.setId(1L);
         bon.setStatus(BonStatus.OPEN);
+        bon.setClient(client);
+        bon.setVanzator(vanzator);
 
         Mockito.when(bonRepository.findById(1L)).thenReturn(Optional.of(bon));
 
@@ -162,6 +174,15 @@ class BonServiceTest {
         ArgumentCaptor<Plata> captor = ArgumentCaptor.forClass(Plata.class);
         Mockito.verify(plataRepository).save(captor.capture());
         assertEquals(BigDecimal.valueOf(12.0), captor.getValue().getSuma());
+
+        ArgumentCaptor<ro.facultate.pos.event.BonPlatitEvent> eventCaptor =
+                ArgumentCaptor.forClass(ro.facultate.pos.event.BonPlatitEvent.class);
+        Mockito.verify(notificationEventPublisher).publishBonPlatit(eventCaptor.capture());
+        assertEquals(1L, eventCaptor.getValue().getBonId());
+        assertEquals(5L, eventCaptor.getValue().getClientId());
+        assertEquals(7L, eventCaptor.getValue().getVanzatorId());
+        assertEquals(BigDecimal.valueOf(12.0), eventCaptor.getValue().getTotal());
+        assertEquals("CASH", eventCaptor.getValue().getTipPlata());
 
         Mockito.verify(bonRepository).save(Mockito.any(Bon.class));
     }
