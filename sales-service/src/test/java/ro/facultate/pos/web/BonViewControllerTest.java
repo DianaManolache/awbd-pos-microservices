@@ -14,7 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
-import ro.facultate.pos.client.CatalogGateway;
+import ro.facultate.pos.client.CatalogClient;
 import ro.facultate.pos.dto.BonDetailsResponse;
 import ro.facultate.pos.entity.Bon;
 import ro.facultate.pos.entity.Client;
@@ -48,7 +48,7 @@ class BonViewControllerTest {
     private VanzatorService vanzatorService;
 
     @MockBean
-    private CatalogGateway catalogClient;
+    private CatalogClient catalogClient;
 
     @Test
     void list_rendersListView() throws Exception {

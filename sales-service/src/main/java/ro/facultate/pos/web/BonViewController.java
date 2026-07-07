@@ -12,7 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import ro.facultate.pos.client.CatalogGateway;
+import ro.facultate.pos.client.CatalogClient;
 import ro.facultate.pos.dto.*;
 import ro.facultate.pos.entity.Bon;
 import ro.facultate.pos.service.BonService;
@@ -28,10 +28,10 @@ public class BonViewController {
     private final BonService bonService;
     private final ClientService clientService;
     private final VanzatorService vanzatorService;
-    private final CatalogGateway catalogClient;
+    private final CatalogClient catalogClient;
 
     public BonViewController(BonService bonService, ClientService clientService,
-                              VanzatorService vanzatorService, CatalogGateway catalogClient) {
+                              VanzatorService vanzatorService, CatalogClient catalogClient) {
         this.bonService = bonService;
         this.clientService = clientService;
         this.vanzatorService = vanzatorService;

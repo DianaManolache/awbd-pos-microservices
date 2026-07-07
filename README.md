@@ -369,17 +369,6 @@ Pornire (6 terminale separate, din radacina monorepo-ului) - **Eureka si Config 
 
 La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`. Aplicatia completa e accesibila prin Gateway la `http://localhost:8080`.
 
-### Resilience4j (circuit breaker + retry)
-Toate apelurile Sales <-> Catalog (ambele directii) trec printr-un wrapper dedicat (`CatalogGateway` in sales-service, `SalesGateway` in catalog-service) care le protejeaza cu Resilience4j, in loc sa apeleze direct Feign Client-ul:
-
-- **Circuit breaker** pe toate apelurile, in ambele directii - fereastra de 5 apeluri, prag de 50% esec, 10s in starea OPEN, apoi 3 apeluri de proba in HALF_OPEN inainte sa decida daca se reinchide sau ramane OPEN. Cand serviciul din spate e cazut, circuitul se deschide si urmatoarele apeluri esueaza instant (fallback), fara sa mai astepte un timeout de retea la fiecare cerere.
-- **Retry** doar pe apelurile read-only (`getProdus`, `getAllProduse`, `produsExistaPeBon`) - 3 incercari, 500ms intre ele. **Nu** se aplica pe `ajusteazaStoc` (ajustarea stocului): fiind o mutatie pe delta, o reincercare oarba ar putea dubla ajustarea daca prima incercare a reusit efectiv pe server dar raspunsul s-a pierdut pe retea - aici circuitul ramane doar cu fail-fast, fara retry automat.
-- Erorile de business (400 stoc insuficient, 404 produs/entitate inexistenta) **nu** sunt tratate ca defectiuni: nu conteaza in rata de esec a circuitului, nu sunt reincercate, si fallback-ul le retransmite neschimbate catre apelant in loc sa le mascheze ca 503.
-- **Fallback fail-closed** pe verificarea "produsul e pe vreun bon?" (facuta de Catalog prin Sales, inainte de stergerea unui produs): cand Sales e indisponibil, fallback-ul raspunde `true` (presupune ca produsul e referentiat), blocand stergerea - mai sigur decat sa presupui `false` si sa permiti o stergere care ar putea lasa o referinta orfana.
-- Pe restul apelurilor (`getProdus`, `getAllProduse`, `ajusteazaStoc`), fallback-ul raspunde cu `503 Catalog indisponibil` in loc de un timeout Feign brut.
-
-Verificat live: cu Catalog picat, primele 2-3 apeluri de la Sales dureaza ~1s (timeout real de conexiune) inainte ca circuitul sa se deschida; apelurile ulterioare raspund in ~5ms (fail-fast), confirmate prin `GET /actuator/circuitbreakers` care arata starea `OPEN` si `notPermittedCalls` crescand. Testat si ciclul complet OPEN -> HALF_OPEN (dupa `wait-duration-in-open-state`) -> probe de test -> inapoi in OPEN cand serviciul e inca picat.
-
 ### In afara scopului acestor sub-proiecte
-Mesagerie (RabbitMQ), caching (Redis), monitorizare (Prometheus/Grafana/Zipkin) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
+Resilience4j, mesagerie (RabbitMQ), caching (Redis), monitorizare (Prometheus/Grafana/Zipkin) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
 
