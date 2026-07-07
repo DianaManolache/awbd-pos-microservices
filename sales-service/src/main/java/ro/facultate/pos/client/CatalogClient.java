@@ -7,7 +7,7 @@ import ro.facultate.pos.dto.ProdusResponse;
 import java.util.List;
 import java.util.Map;
 
-@FeignClient(name = "catalog-service", url = "${catalog-service.url}")
+@FeignClient(name = "catalog-service")
 public interface CatalogClient {
 
     @GetMapping("/api/produse")

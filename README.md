@@ -295,6 +295,8 @@ Aplicatia a fost impartita in 4 microservicii independente, organizate ca monore
 | **sales-service** | 8082 | Client, Vanzator, Bon, BonProdus, Plata | `/web/bonuri`, `/web/clienti`, `/web/vanzatori` | Postgres propriu (`sales_db`) |
 | **user-service** | 8083 | Utilizator + Spring Security | `/web/utilizatori`, `/login` | Postgres propriu (`user_db`) |
 | **notification-service** | 8084 | (schelet, fara logica inca) | - | - |
+| **eureka-server** | 8761 | - | - | - |
+| **config-server** | 8888 | - | - | - |
 
 Fiecare serviciu are baza de date proprie si comunica cu celelalte exclusiv prin REST (Spring Cloud OpenFeign), fara acces direct la baza de date a altui serviciu.
 
@@ -304,7 +306,19 @@ Fiecare serviciu are baza de date proprie si comunica cu celelalte exclusiv prin
 - **User -> Sales**: la creare cont, User verifica prin Sales (`GET /api/vanzatori/{id}`) ca vanzatorul exista.
 - **Sales -> User**: inainte de a permite stergerea unui vanzator, Sales verifica prin User (`GET /api/utilizatori/by-vanzator/{id}`) daca vanzatorul are deja un cont asociat.
 
-Toate cele 4 fluxuri de mai sus au fost verificate manual, live, cu cele 3 servicii ruland simultan pe porturile proprii.
+Toate cele 4 fluxuri de mai sus au fost verificate manual, live, cu cele 3 servicii ruland simultan pe porturile proprii. Feign Client-urile rezolva adresa celuilalt serviciu prin nume (`sales-service`, `catalog-service`, `user-service`), nu prin URL hardcodat - rezolvarea se face prin Eureka (vezi sectiunea de mai jos).
+
+### Service discovery (Eureka)
+- `eureka-server` (port 8761) - registry central; cele 3 servicii de business se inregistreaza automat la pornire (`spring-cloud-starter-netflix-eureka-client`) si isi reinnoiesc periodic inregistrarea (heartbeat)
+- Feign Client-urile (`@FeignClient(name = "sales-service")`, fara atributul `url`) rezolva adresa reala prin Eureka + Spring Cloud LoadBalancer, nu prin configurare statica
+- Dashboard-ul Eureka (`http://localhost:8761`) arata cele 3 servicii cu status `UP`
+- In profilul `test`, `eureka.client.enabled=false` - testele nu depind de un Eureka pornit, raman hermetice si rapide
+
+### Configurare centralizata (Spring Cloud Config)
+- `config-server` (port 8888) - serveste configurarea pentru profilul `dev` a celor 3 servicii dintr-un backend `native` (fisiere locale in `config-server/src/main/resources/config-repo/`, cate un fisier per serviciu, numit exact ca `spring.application.name`)
+- Contine configurarile sensibile centralizate (datasource: URL/user/parola Postgres) - eliminate din `application-dev.yml`-urile locale ale fiecarui serviciu
+- Fiecare serviciu importa configurarea la pornire prin `spring.config.import=optional:configserver:http://localhost:8888` (prefixul `optional:` face ca serviciul sa porneasca normal si daca Config Server nu e disponibil, folosind orice configurare locala ramasa)
+- **Refresh dinamic fara restart**: fiecare serviciu expune `POST /actuator/refresh`; orice bean adnotat `@RefreshScope` isi reincarca valorile din Config Server la apelul acestui endpoint, fara sa fie nevoie de restart. Demonstrat concret in `catalog-service` cu `ConfigDemoController` (`GET /api/config-demo`, proprietatea `app.mesaj-bun-venit`): se modifica valoarea in config-repo, se apeleaza `/actuator/refresh`, si endpoint-ul raspunde imediat cu noua valoare, fara restart.
 
 ### Schimbari de model de date fata de monolit
 Relatiile JPA care traversau granita noii separari pe servicii nu mai pot fi relatii `@ManyToOne`/`@OneToOne` (baze de date diferite):
@@ -319,8 +333,10 @@ CREATE DATABASE sales_db;
 CREATE DATABASE user_db;
 ```
 
-Pornire (3 terminale separate, din radacina monorepo-ului):
+Pornire (5 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business:
 ```bash
+./mvnw -pl eureka-server spring-boot:run
+./mvnw -pl config-server spring-boot:run
 ./mvnw -pl catalog-service spring-boot:run
 ./mvnw -pl sales-service spring-boot:run
 ./mvnw -pl user-service spring-boot:run
@@ -328,6 +344,6 @@ Pornire (3 terminale separate, din radacina monorepo-ului):
 
 La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`.
 
-### In afara scopului acestui sub-proiect
-Service discovery (Eureka), configurare centralizata (Spring Cloud Config), API Gateway, load balancing, securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare - acest sub-proiect s-a limitat la spargerea structurala a monolitului si la comunicarea REST directa intre servicii.
+### In afara scopului acestor sub-proiecte
+API Gateway, load balancing cu instante multiple, securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare.
 
