@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Eroare de server')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1>500 - Eroare interna de server</h1>
+    <p>A aparut o eroare neasteptata. Incearca din nou mai tarziu.</p>
+    <a href="/" class="btn btn-primary">Inapoi la pagina principala</a>
+</div>
+</body>
+</html>
