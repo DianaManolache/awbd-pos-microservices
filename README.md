@@ -391,6 +391,16 @@ Verificat live: cu Catalog picat, primele 2-3 apeluri de la Sales dureaza ~1s (t
 
 Verificat live, cu toate cele 7 servicii ruland simultan: plata unui bon si epuizarea stocului unui produs (prin fluxul normal, prin Gateway) au generat ambele notificari in MongoDB, vizibile atat direct pe `notification-service` cat si prin Gateway, pe API si pe pagina web; acces anonim respins cu 401.
 
+### Caching (Redis)
+`catalog-service` foloseste Redis (Spring Cache abstraction + `spring-boot-starter-data-redis`) pentru operatiile de citire cele mai frecvente - `getAll()`/`getById()` din `CategorieService`, `ProdusService` si `PromotieService` (plus `getByCategorie()` la Produs). Rulare locala: Redis instalat prin Homebrew (`brew services start redis`), nu Docker.
+
+- **Serializare JSON, nu JDK**: entitatile JPA (`Categorie`, `Produs`, `Promotie`) nu implementeaza `Serializable`, asa ca serializarea implicita a Redis ar arunca `NotSerializableException`. `CacheConfig` configureaza `GenericJackson2JsonRedisSerializer` pentru valori - acelasi mecanism Jackson care serializeaza deja aceste entitati pentru raspunsurile REST.
+- **Evictie completa la orice scriere** (`@CacheEvict(allEntries = true)`) pe create/update/delete si, pentru Produs, si pe `updateStoc`/`ajusteazaStoc`: stocul se schimba la fiecare vanzare, deci un cache stale ar afisa stoc incorect - corectitudinea conteaza mai mult decat rata de hit aici. `getPage(Pageable)` (listele paginate/sortate) nu e cache-uit deliberat - ar genera o cheie de cache separata pentru fiecare combinatie de pagina/marime/sortare, fara beneficiu real.
+- **TTL de backstop**: `spring.cache.redis.time-to-live: 5m`, in caz ca o evictie e ratata undeva.
+- **Teste hermetice**: profilul `test` seteaza `spring.cache.type: simple` (cache in memorie, ConcurrentHashMap) - `mvn test` nu depinde de un Redis pornit, la fel cum profilul de test nu depinde de Eureka/Config Server/Postgres reale.
+
+Verificat live: primul `GET /api/categorii` a durat ~345ms (interogare reala in baza de date) si a populat cheia `categorii::all` in Redis; al doilea apel a durat ~7ms (cache hit, de ~45 ori mai rapid). Un `POST /api/categorii` a evacuat imediat cheia din Redis (confirmat cu `redis-cli keys "*"`), iar urmatorul GET a repopulat-o cu datele actualizate.
+
 ### In afara scopului acestor sub-proiecte
-Caching (Redis) si monitorizare (Prometheus/Grafana/Zipkin) sunt planificate in sub-proiecte ulterioare.
+Monitorizarea (Prometheus/Grafana/Zipkin) e planificata intr-un sub-proiect ulterior.
 

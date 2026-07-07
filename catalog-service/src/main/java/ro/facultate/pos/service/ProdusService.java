@@ -2,6 +2,8 @@ package ro.facultate.pos.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -25,6 +27,8 @@ import java.util.List;
 @Service
 public class ProdusService {
 
+    private static final String CACHE = "produse";
+
     private static final Logger log = LoggerFactory.getLogger(ProdusService.class);
 
     private final ProdusRepository produsRepository;
@@ -45,6 +49,7 @@ public class ProdusService {
         this.notificationEventPublisher = notificationEventPublisher;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Produs create(CreateProdusRequest req) {
         Categorie categorie = categorieRepository.findById(req.getCategorieId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Categorie not found"));
@@ -60,6 +65,7 @@ public class ProdusService {
         return saved;
     }
 
+    @Cacheable(value = CACHE, key = "'all'")
     public List<Produs> getAll() {
         return produsRepository.findAll();
     }
@@ -68,10 +74,12 @@ public class ProdusService {
         return produsRepository.findAll(pageable);
     }
 
+    @Cacheable(value = CACHE, key = "'categorie:' + #categorieId")
     public List<Produs> getByCategorie(Long categorieId) {
         return produsRepository.findByCategorieId(categorieId);
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Produs updateStoc(Long produsId, UpdateStocRequest req) {
         Produs produs = produsRepository.findById(produsId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
@@ -83,6 +91,7 @@ public class ProdusService {
         return saved;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Produs ajusteazaStoc(Long produsId, AjusteazaStocRequest req) {
         Produs produs = produsRepository.findById(produsId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
@@ -107,11 +116,13 @@ public class ProdusService {
         }
     }
 
+    @Cacheable(value = CACHE, key = "#id")
     public Produs getById(Long id) {
         return produsRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produs not found"));
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public Produs update(Long id, UpdateProdusRequest req) {
         Produs produs = getById(id);
 
@@ -128,6 +139,7 @@ public class ProdusService {
         return saved;
     }
 
+    @CacheEvict(value = CACHE, allEntries = true)
     public void delete(Long id) {
         Produs produs = getById(id);
 
