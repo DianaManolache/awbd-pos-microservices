@@ -1,0 +1,4 @@
+app:
+  jwt:
+    secret: "qNhtuEiQYGzj4PIeSuWUubMSyd5PW4ZRZZ1X92+G1XW7dFeXrvClNsIcyqLhUwev"
+    expiration-minutes: 15
