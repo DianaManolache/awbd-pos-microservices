@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import ro.facultate.pos.client.SalesClient;
+import ro.facultate.pos.client.SalesGateway;
 import ro.facultate.pos.dto.AjusteazaStocRequest;
 import ro.facultate.pos.dto.CreateProdusRequest;
 import ro.facultate.pos.dto.UpdateProdusRequest;
@@ -28,12 +28,12 @@ public class ProdusService {
     private final ProdusRepository produsRepository;
     private final CategorieRepository categorieRepository;
     private final PromotieRepository promotieRepository;
-    private final SalesClient salesClient;
+    private final SalesGateway salesClient;
 
     public ProdusService(ProdusRepository produsRepository,
                           CategorieRepository categorieRepository,
                           PromotieRepository promotieRepository,
-                          SalesClient salesClient) {
+                          SalesGateway salesClient) {
         this.produsRepository = produsRepository;
         this.categorieRepository = categorieRepository;
         this.promotieRepository = promotieRepository;
