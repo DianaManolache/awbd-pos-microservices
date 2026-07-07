@@ -281,3 +281,53 @@ Autentificare si autorizare bazate pe roluri, implementate cu Spring Security.
 - `SalesFlowIntegrationTest` (test de integrare end-to-end pe API) ruleaza cu `@WithMockUser(roles = "ADMIN")`
 - `SecurityIntegrationTest` - teste dedicate, pe context Spring Boot complet, cu utilizatori reali salvati cu parola criptata: acces anonim la pagini protejate (redirect la login), acces anonim la API (401), rol gresit pe pagina de administrare (403), rol corect (200), login cu credentiale corecte/incorecte/inexistente, logout
 
+> **Notă (Partea II):** sectiunea de mai sus descrie Spring Security asa cum a fost implementat in monolit (Partea I). Dupa spargerea in microservicii (vezi sectiunea "Arhitectura microservicii" de mai jos), Security ramane deliberat doar in `user-service` pentru sub-proiectul curent, scopat la ce serveste efectiv acest modul (`/web/utilizatori/**`, `/api/**`); `catalog-service` si `sales-service` nu au Security in acest sub-proiect. Autentificarea distribuita intre toate serviciile (JWT emis de Gateway) e planificata intr-un sub-proiect ulterior.
+
+---
+
+## Arhitectura microservicii (Partea II)
+
+Aplicatia a fost impartita in 4 microservicii independente, organizate ca monorepo Maven (un POM parent + module).
+
+| Serviciu | Port | Entitati proprii | Views Thymeleaf | Baza de date |
+|---|---|---|---|---|
+| **catalog-service** | 8081 | Categorie, Produs, Promotie | `/web/categorii`, `/web/produse`, `/web/promotii` | Postgres propriu (`catalog_db`) |
+| **sales-service** | 8082 | Client, Vanzator, Bon, BonProdus, Plata | `/web/bonuri`, `/web/clienti`, `/web/vanzatori` | Postgres propriu (`sales_db`) |
+| **user-service** | 8083 | Utilizator + Spring Security | `/web/utilizatori`, `/login` | Postgres propriu (`user_db`) |
+| **notification-service** | 8084 | (schelet, fara logica inca) | - | - |
+
+Fiecare serviciu are baza de date proprie si comunica cu celelalte exclusiv prin REST (Spring Cloud OpenFeign), fara acces direct la baza de date a altui serviciu.
+
+### Comunicare intre servicii
+- **Sales -> Catalog**: la adaugarea unui produs pe bon, Sales rezerva/decrementeaza stocul printr-un apel real catre Catalog (`POST /api/produse/{id}/ajusteaza-stoc`) inainte de a salva linia local - implementare de baza a pattern-ului **Saga**: daca salvarea locala esueaza dupa rezervarea stocului, Sales compenseaza restaurand stocul in Catalog.
+- **Catalog -> Sales**: inainte de a permite stergerea unui produs, Catalog verifica prin Sales (`GET /api/bons/produse/{id}/pe-bon`) daca produsul apare pe vreun bon.
+- **User -> Sales**: la creare cont, User verifica prin Sales (`GET /api/vanzatori/{id}`) ca vanzatorul exista.
+- **Sales -> User**: inainte de a permite stergerea unui vanzator, Sales verifica prin User (`GET /api/utilizatori/by-vanzator/{id}`) daca vanzatorul are deja un cont asociat.
+
+Toate cele 4 fluxuri de mai sus au fost verificate manual, live, cu cele 3 servicii ruland simultan pe porturile proprii.
+
+### Schimbari de model de date fata de monolit
+Relatiile JPA care traversau granita noii separari pe servicii nu mai pot fi relatii `@ManyToOne`/`@OneToOne` (baze de date diferite):
+- `BonProdus.produs` (Sales) -> `produsId: Long` + `produsNume: String` (denormalizat la creare, la fel ca `pretUnitar`, pentru a evita un apel Feign doar pentru afisare)
+- `Utilizator.vanzator` (User) -> `vanzatorId: Long`, validat prin apel REST la Sales
+
+### Rulare locala
+Necesita 3 baze Postgres create in avans:
+```sql
+CREATE DATABASE catalog_db;
+CREATE DATABASE sales_db;
+CREATE DATABASE user_db;
+```
+
+Pornire (3 terminale separate, din radacina monorepo-ului):
+```bash
+./mvnw -pl catalog-service spring-boot:run
+./mvnw -pl sales-service spring-boot:run
+./mvnw -pl user-service spring-boot:run
+```
+
+La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`.
+
+### In afara scopului acestui sub-proiect
+Service discovery (Eureka), configurare centralizata (Spring Cloud Config), API Gateway, load balancing, securitate distribuita (JWT), Resilience4j, mesagerie (RabbitMQ) si continutul efectiv al `notification-service` sunt planificate in sub-proiecte ulterioare - acest sub-proiect s-a limitat la spargerea structurala a monolitului si la comunicarea REST directa intre servicii.
+
