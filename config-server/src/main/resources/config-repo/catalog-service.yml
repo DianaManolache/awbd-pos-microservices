@@ -15,7 +15,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: refresh,health,info
+        include: refresh,health,info,circuitbreakers,retries
 
 app:
   mesaj-bun-venit: "Bun venit in catalogul de produse!"

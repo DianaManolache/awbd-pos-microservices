@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import ro.facultate.pos.client.CatalogClient;
+import ro.facultate.pos.client.CatalogGateway;
 import ro.facultate.pos.dto.CreateBonRequest;
 import ro.facultate.pos.dto.ProdusResponse;
 import ro.facultate.pos.dto.UpdateBonRequest;
@@ -45,14 +45,14 @@ public class BonService {
     private final VanzatorRepository vanzatorRepository;
     private final BonProdusRepository bonProdusRepository;
     private final PlataRepository plataRepository;
-    private final CatalogClient catalogClient;
+    private final CatalogGateway catalogClient;
 
     public BonService(BonRepository bonRepository,
                       ClientRepository clientRepository,
                       VanzatorRepository vanzatorRepository,
                       BonProdusRepository bonProdusRepository,
                       PlataRepository plataRepository,
-                      CatalogClient catalogClient) {
+                      CatalogGateway catalogClient) {
         this.bonRepository = bonRepository;
         this.clientRepository = clientRepository;
         this.vanzatorRepository = vanzatorRepository;
