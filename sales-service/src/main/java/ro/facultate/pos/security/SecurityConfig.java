@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/swagger-ui/**", "/v3/api-docs/**",
-                                "/actuator/health", "/actuator/info").permitAll()
+                                "/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/web/bonuri/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/web/clienti/**", "/web/vanzatori/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
