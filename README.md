@@ -357,17 +357,23 @@ CREATE DATABASE sales_db;
 CREATE DATABASE user_db;
 ```
 
-Pornire (6 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business, apoi Gateway-ul:
+Infrastructura (toate prin Homebrew, pornite o singura data, ramanand active in fundal):
+```bash
+brew services start rabbitmq mongodb-community redis prometheus grafana zipkin
+```
+
+Pornire servicii (7 terminale separate, din radacina monorepo-ului) - **Eureka si Config Server primele**, apoi serviciile de business, apoi Gateway-ul:
 ```bash
 ./mvnw -pl eureka-server spring-boot:run
 ./mvnw -pl config-server spring-boot:run
 ./mvnw -pl catalog-service spring-boot:run
 ./mvnw -pl sales-service spring-boot:run
 ./mvnw -pl user-service spring-boot:run
+./mvnw -pl notification-service spring-boot:run
 ./mvnw -pl api-gateway spring-boot:run
 ```
 
-La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`. Aplicatia completa e accesibila prin Gateway la `http://localhost:8080`.
+La primul start, `user-service` creeaza automat contul ADMIN implicit (`admin`/`admin123`), inclusiv vanzatorul asociat, printr-un apel real catre `sales-service`. Aplicatia completa e accesibila prin Gateway la `http://localhost:8080`. Prometheus: `http://localhost:9090`; Grafana: `http://localhost:3000` (admin/admin, dashboard-ul "POS Microservices" importat din `monitoring/grafana-dashboard.json`); Zipkin: `http://localhost:9411`.
 
 ### Resilience4j (circuit breaker + retry)
 Toate apelurile Sales <-> Catalog (ambele directii) trec printr-un wrapper dedicat (`CatalogGateway` in sales-service, `SalesGateway` in catalog-service) care le protejeaza cu Resilience4j, in loc sa apeleze direct Feign Client-ul:
@@ -401,6 +407,14 @@ Verificat live, cu toate cele 7 servicii ruland simultan: plata unui bon si epui
 
 Verificat live: primul `GET /api/categorii` a durat ~345ms (interogare reala in baza de date) si a populat cheia `categorii::all` in Redis; al doilea apel a durat ~7ms (cache hit, de ~45 ori mai rapid). Un `POST /api/categorii` a evacuat imediat cheia din Redis (confirmat cu `redis-cli keys "*"`), iar urmatorul GET a repopulat-o cu datele actualizate.
 
-### In afara scopului acestor sub-proiecte
-Monitorizarea (Prometheus/Grafana/Zipkin) e planificata intr-un sub-proiect ulterior.
+### Monitorizare (Prometheus + Grafana + Zipkin)
+Toate cele 7 servicii (inclusiv `eureka-server` si `config-server`) expun metrici si trimit trace-uri distribuite. Rulare locala: Prometheus, Grafana si Zipkin instalate prin Homebrew (`brew services start prometheus/grafana/zipkin`), nu Docker.
+
+- **Metrici**: `micrometer-registry-prometheus` pe toate serviciile, endpoint `GET /actuator/prometheus`. Config de scrape in `monitoring/prometheus.yml` (o tinta per serviciu, pe portul propriu) - copiat in `/opt/homebrew/etc/prometheus.yml` pentru rulare locala.
+- **`/actuator/prometheus` e public** (`permitAll()` in `SecurityConfig`, alaturi de `/actuator/health`/`/actuator/info`) pe cele 4 servicii cu JWT: Prometheus nu se poate autentifica, deci scraping-ul ar fi esuat cu 401. Compromis deliberat pentru scopul acestui proiect (nu productie reala) - documentat aici, nu ascuns.
+- **Dashboard Grafana**: `monitoring/grafana-dashboard.json` (importat prin API-ul Grafana) - rata cererilor HTTP, latenta medie, memorie heap JVM si status up/down, toate per serviciu (`job` din scrape config).
+- **Trasare distribuita**: `micrometer-tracing-bridge-brave` + `zipkin-reporter-brave` pe toate serviciile, `management.tracing.sampling.probability=1.0` (100% din cereri trasate, pentru demo - intr-un sistem real ar fi mult mai mic), trimise catre Zipkin la `http://localhost:9411/api/v2/spans`.
+- **Bug real gasit si reparat**: prima verificare live a aratat trace-uri separate per serviciu, niciunul acoperind Sales -> Catalog, desi apelul Feign chiar avea loc. Cauza: `spring-cloud-starter-openfeign` nu instrumenteaza automat clientii Feign pentru tracing - are nevoie explicit de `io.github.openfeign:feign-micrometer` pe classpath (verificat cu `mvn dependency:tree`, lipsea complet). Adaugat in `catalog-service`, `sales-service`, `user-service` (singurele cu Feign clients); dupa fix, un singur trace acopera corect `api-gateway -> sales-service -> catalog-service`.
+
+Verificat live, cu toate cele 7 servicii + Prometheus + Grafana + Zipkin ruland simultan: toate cele 7 tinte apar `up` in Prometheus (`/api/v1/targets`); un flux normal prin Gateway (creare bon, adaugare produs pe bon) a generat un trace Zipkin cu 18 spanuri acoperind `api-gateway`, `sales-service` si `catalog-service` sub acelasi `traceId`, cu ierarhia corecta (apelul Feign catre Catalog aparand ca span copil al cererii HTTP primite de Sales).
 

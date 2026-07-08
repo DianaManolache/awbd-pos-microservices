@@ -15,4 +15,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: refresh,health,info,circuitbreakers,retries
+        include: refresh,health,info,circuitbreakers,retries,prometheus
