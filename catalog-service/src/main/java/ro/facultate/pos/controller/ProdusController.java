@@ -52,7 +52,9 @@ public class ProdusController {
     @ApiResponse(responseCode = "200", description = "Lista produse")
     @GetMapping
     public List<Produs> getAll() {
-        return produsService.getAll();
+        List<Produs> produse = produsService.getAll();
+        produsService.aplicaPretEfectiv(produse);
+        return produse;
     }
 
     @Operation(
@@ -62,7 +64,9 @@ public class ProdusController {
     @ApiResponse(responseCode = "200", description = "Lista produse")
     @GetMapping("/categorie/{categorieId}")
     public List<Produs> getByCategorie(@PathVariable Long categorieId) {
-        return produsService.getByCategorie(categorieId);
+        List<Produs> produse = produsService.getByCategorie(categorieId);
+        produsService.aplicaPretEfectiv(produse);
+        return produse;
     }
 
     @Operation(
@@ -97,7 +101,9 @@ public class ProdusController {
     })
     @GetMapping("/{id}")
     public Produs getById(@PathVariable Long id) {
-        return produsService.getById(id);
+        Produs produs = produsService.getById(id);
+        produsService.aplicaPretEfectiv(produs);
+        return produs;
     }
 
     @Operation(summary = "Actualizeaza produs", description = "Actualizeaza toate campurile unui produs existent")

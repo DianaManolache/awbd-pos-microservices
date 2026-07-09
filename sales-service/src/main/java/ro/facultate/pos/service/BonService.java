@@ -162,7 +162,10 @@ public class BonService {
         bp.setProdusId(produs.getId());
         bp.setProdusNume(produs.getNume());
         bp.setCantitate(req.getCantitate());
-        bp.setPretUnitar(produs.getPret());
+        // pretEfectiv reflecta orice promotie activa in acest moment; fallback pe
+        // pret daca lipseste (rolling deploy: catalog-service nu a fost inca
+        // actualizat sa trimita acest camp).
+        bp.setPretUnitar(produs.getPretEfectiv() != null ? produs.getPretEfectiv() : produs.getPret());
 
         BonProdus saved;
         try {

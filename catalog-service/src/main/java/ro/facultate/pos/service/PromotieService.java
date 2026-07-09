@@ -15,6 +15,7 @@ import ro.facultate.pos.repository.ProdusRepository;
 import ro.facultate.pos.repository.PromotieRepository;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -50,13 +51,33 @@ public class PromotieService {
 
     @Cacheable(value = CACHE, key = "'all'")
     public List<Promotie> getAll() {
-        return promotieRepository.findAll();
+        List<Promotie> promotii = promotieRepository.findAll();
+        promotii.forEach(this::detachProduse);
+        return promotii;
     }
 
     @Cacheable(value = CACHE, key = "#id")
     public Promotie getById(Long id) {
-        return promotieRepository.findById(id)
+        Promotie promotie = promotieRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotie not found"));
+        detachProduse(promotie);
+        return promotie;
+    }
+
+    /**
+     * Inlocuieste colectia lazy Hibernate (PersistentSet) cu un HashSet
+     * simplu, inainte ca entitatea sa fie scrisa in cache-ul Redis.
+     * GenericJackson2JsonRedisSerializer salveaza clasa CONCRETA a
+     * colectiei ca type-hint ("@class") - pentru o colectie lazy
+     * neconvertita, asta e org.hibernate.collection.spi.PersistentSet,
+     * o clasa interna Hibernate care nu poate fi reconstruita corect in
+     * afara unei sesiuni active. La citire din cache, Jackson incearca
+     * sa instantieze exact acea clasa, rezultand un PersistentSet "fara
+     * sesiune" care arunca LazyInitializationException la prima
+     * iterare (ex. in formularul de editare promotie).
+     */
+    private void detachProduse(Promotie promotie) {
+        promotie.setProduse(new HashSet<>(promotie.getProduse()));
     }
 
     @CacheEvict(value = CACHE, allEntries = true)
