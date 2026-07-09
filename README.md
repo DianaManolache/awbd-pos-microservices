@@ -336,7 +336,7 @@ Pornire instanta secundara de Catalog Service (pentru demo de load balancing):
 ### Securitate distribuita (JWT)
 `user-service` este singurul serviciu cu formular de login si sesiune HTTP; `catalog-service` si `sales-service` nu au (si nu au avut vreodata) niciun mecanism de sesiune propriu. Fluxul de identitate ales:
 
-- La login cu succes, un `AuthenticationSuccessHandler` propriu (`JwtCookieAuthenticationSuccessHandler`) emite un JWT (subiect = username, claim `rol`, expirare 15 minute, semnat HMAC cu o cheie partajata prin Config Server) si il seteaza ca al doilea cookie, `AUTH_TOKEN` (`HttpOnly`, alaturi de `JSESSIONID`).
+- La login cu succes, un `AuthenticationSuccessHandler` propriu (`JwtCookieAuthenticationSuccessHandler`) emite un JWT (subiect = username, claim `rol`, expirare 60 minute, semnat HMAC cu o cheie partajata prin Config Server) si il seteaza ca al doilea cookie, `AUTH_TOKEN` (`HttpOnly`, alaturi de `JSESSIONID`).
 - Gateway-ul citeste acest cookie pe fiecare cerere (`JwtForwardingGlobalFilter`) si il retransmite ca header `Authorization: Bearer <token>` catre serviciul din spate - clientul (browser) nu vede si nu manipuleaza niciodata tokenul direct ca header.
 - `catalog-service` si `sales-service` au primit cate un `SecurityConfig` complet nou: resource server JWT **stateless** (`SessionCreationPolicy.STATELESS`, fara CSRF, fara formular de login), cu reguli de autorizare pe rol identice cu cele existente deja pe partea de `/web/**` (ex. `/web/produse/**` -> `ADMIN`, `/web/bonuri/**` -> `USER`/`ADMIN`).
 - Propagarea identitatii intre apelurile interne Feign (Sales -> Catalog, Sales -> User, Catalog -> Sales, User -> Sales) se face printr-un `FeignAuthInterceptor` care copiaza header-ul `Authorization` al cererii curente pe cererea Feign iesita; pentru singurul apel fara context HTTP (crearea vanzatorului ADMIN la pornire, in `AdminSeeder`), interceptorul emite el insusi un token temporar de sistem (`system-bootstrap`/`ADMIN`) in loc sa lase acel endpoint permanent deschis fara autentificare.
@@ -417,4 +417,52 @@ Toate cele 7 servicii (inclusiv `eureka-server` si `config-server`) expun metric
 - **Bug real gasit si reparat**: prima verificare live a aratat trace-uri separate per serviciu, niciunul acoperind Sales -> Catalog, desi apelul Feign chiar avea loc. Cauza: `spring-cloud-starter-openfeign` nu instrumenteaza automat clientii Feign pentru tracing - are nevoie explicit de `io.github.openfeign:feign-micrometer` pe classpath (verificat cu `mvn dependency:tree`, lipsea complet). Adaugat in `catalog-service`, `sales-service`, `user-service` (singurele cu Feign clients); dupa fix, un singur trace acopera corect `api-gateway -> sales-service -> catalog-service`.
 
 Verificat live, cu toate cele 7 servicii + Prometheus + Grafana + Zipkin ruland simultan: toate cele 7 tinte apar `up` in Prometheus (`/api/v1/targets`); un flux normal prin Gateway (creare bon, adaugare produs pe bon) a generat un trace Zipkin cu 18 spanuri acoperind `api-gateway`, `sales-service` si `catalog-service` sub acelasi `traceId`, cu ierarhia corecta (apelul Feign catre Catalog aparand ca span copil al cererii HTTP primite de Sales).
+
+## Deployment (Docker Compose + Azure)
+
+**Aplicatia e live la** `http://74.248.120.248:8080` (VM Azure, pornit doar cand e nevoie de demo - vezi mai jos).
+
+### Containerizare
+- Un singur `Dockerfile` la radacina monorepo-ului, multi-stage: un stage `build` comun (compileaza toate cele 7 module intr-o singura trecere Maven, ca sa nu se repete descarcarea dependintelor de 7 ori), apoi cate un stage final subtire per serviciu (`eclipse-temurin:21-jre-alpine`), fiecare copiind doar jarul lui.
+- `docker-compose.yml` - stack-ul "core": Postgres (un singur container, 3 baze - `catalog_db`/`sales_db`/`user_db` - create printr-un script de init, `docker/postgres-init/`), MongoDB, RabbitMQ, Redis, si toate cele 7 servicii, cu healthcheck-uri si ordine de pornire (`depends_on` cu `condition: service_healthy`).
+- `docker-compose.monitoring.yml` - fisier separat, optional, cu Prometheus/Grafana/Zipkin (`docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d`). Grafana isi auto-configureaza sursa de date Prometheus si dashboard-ul la pornire (`monitoring/grafana-provisioning/`), fara niciun click manual.
+- Hostname-urile interne (Postgres, Eureka, Config Server, Redis, Mongo, RabbitMQ, Zipkin) sunt suprascrise per-container prin `JAVA_TOOL_OPTIONS` (system properties `-D...`, care au prioritate peste orice fisier de configurare, indiferent de profilul Spring activ) - nu a fost nevoie de un profil Spring nou dedicat Docker-ului.
+- **Masurat live**: tot stack-ul (7 servicii + 4 baze de date/broker + Prometheus/Grafana/Zipkin) foloseste **~2.9GB RAM** in total - incape confortabil intr-un VM cu 4GB, darămite cu 8GB.
+
+### Bug real gasit si reparat: race la primul boot
+La primul `docker compose up`, `user-service` si `sales-service` pornesc aproape simultan; `AdminSeeder`-ul din `user-service` incearca sa creeze contul ADMIN implicit apeland `sales-service` prin Feign, dar Eureka-ul are o intarziere de propagare (cache-ul client-side se actualizeaza la interval, nu instant) - la prima incercare, `sales-service` inca nu e vizibil pentru `user-service`. Codul deja trateaza asta gracios (log de warning, nu crash), dar niciun cont ADMIN nu se creeaza. Solutie: un singur `docker compose restart user-service` dupa ce restul serviciilor s-au inregistrat rezolva problema (seeder-ul verifica `count() > 0` inainte sa incerce, deci re-rularea e sigura). Intamplat identic atat local cat si pe VM-ul Azure. Acelasi tip de intarziere Eureka a reaparut si la un restart ulterior al `user-service` (503 Service Unavailable de la Gateway timp de cateva secunde, pana Gateway-ul si-a reactualizat cache-ul de instante) - tranzitoriu, s-a rezolvat singur.
+
+### Bug real gasit si reparat: JWT expira mai repede decat sesiunea
+Testand aplicatia live in browser (nu doar prin curl), un click pe orice buton dupa cateva minute de navigare arunca `401 Unauthorized` / Whitelabel Error Page, desi pagina parea in continuare "logata". Cauza: `AUTH_TOKEN` (JWT) expira in 15 minute si **nu exista niciun mecanism de reinnoire automata** - `JwtCookieAuthenticationSuccessHandler` emite un JWT nou doar la un login explicit (submit pe formular), niciodata la o re-autentificare silentioasa prin `remember-me` (care tine sesiunea vie 14 zile). Practic: sesiunea (`JSESSIONID` + remember-me) supravietuieste mult mai mult decat JWT-ul, deci utilizatorul ramane "logat" din perspectiva sesiunii, dar orice actiune care ajunge la Catalog/Sales (resource server-e JWT stateless, fara alta forma de autentificare) primeste 401 odata ce tokenul a expirat. Solutie aplicata: marit `app.jwt.expiration-minutes` de la 15 la 60 (in config-server) - suficient pentru o sesiune de lucru/demo normala, pastrand totusi principiul de token cu viata scurta. O solutie completa (refresh token automat) ar fi mai potrivita pentru productie reala, dar depaseste scopul acestui proiect.
+
+### Bug real gasit si reparat: redirect-urile de login/logout aratau catre IP-ul intern Docker
+Dupa fix-ul de mai sus, click-urile pe Categorii/Bonuri/Logout tot picau - de data asta pentru ca `Location`-ul din raspunsul de login/logout arata catre adresa **interna** a containerului (`http://172.18.0.x:8083/`), nefolosibila din afara retelei Docker/VNet-ului Azure. Cauza, in 2 straturi:
+- `user-service` nu stia ca sta in spatele unui reverse proxy (Gateway), deci Spring Security isi construia redirect-urile pe baza propriei adrese/port, nu a adresei publice vazute de client - rezolvat cu `server.forward-headers-strategy=framework` pe toate cele 4 servicii web (foloseste header-ele `X-Forwarded-*` daca sunt prezente).
+- Chiar si asa, header-ele `X-Forwarded-*` nu ajungeau deloc la servicii: Spring Cloud Gateway (varianta webflux, `spring-cloud-gateway-server-webflux`) creeaza bean-ul `XForwardedHeadersFilter` **doar** daca `spring.cloud.gateway.server.webflux.trusted-proxies` e un regex ne-gol - indiferent de flag-ul `x-forwarded.enabled`. Fara niciun proxy setat ca "de incredere", filtrul nu se activa niciodata, silentios (nicio eroare, doar un log DEBUG/TRACE greu de gasit). Depistat prin activarea temporara a `logging.level.org.springframework.cloud.gateway=TRACE` pe Gateway si cautarea exacta a mesajului `XForwardedTrustedProxiesCondition`. Rezolvat cu `spring.cloud.gateway.server.webflux.trusted-proxies: .*` (Gateway-ul e singurul punct de intrare public, nu exista alt proxy de "aprobat" explicit).
+
+### Bug real gasit si reparat: Logout esua cu 403 daca era apasat de pe orice pagina in afara de user-service
+Butonul de Logout apare in fragmentul de navigare comun tuturor serviciilor, dar `catalog-service`/`sales-service`/`notification-service` au CSRF **dezactivat** (resource servere JWT stateless) - cand pagina era randata de oricare din aceste 3 servicii, formularul de logout nu avea de unde sa primeasca un token CSRF valid pentru sesiunea din `user-service` (singurul care detine efectiv `/logout`). Rezultat: logout esua cu 403 de fiecare data cand era apasat din Categorii/Produse/Bonuri/Clienti - practic aproape intotdeauna, doar functiona intamplator din `/web/utilizatori`. Rezolvat prin adaugarea `/logout` la lista de path-uri ignorate de CSRF in `user-service` (`csrf.ignoringRequestMatchers("/api/**", "/logout")`) - un forced-logout nu e o actiune suficient de sensibila incat sa merite complexitatea suplimentara a unei solutii cu CSRF.
+
+Toate cele 3 bug-uri de mai sus au fost gasite **doar** testand efectiv in browser dupa deployment - niciun test automatizat din proiect (inclusiv verificarile live anterioare, toate facute cu curl fara sa urmareasca vreun redirect) nu le-ar fi putut prinde. Verificat complet dupa fix: login -> navigare Categorii/Bonuri -> flux complet de vanzare -> logout (redirect corect catre pagina publica de login) -> confirmare ca sesiunea chiar s-a incheiat (401 pe Categorii) -> login din nou - tot ciclul functioneaza curat.
+
+### Azure
+Cont **Azure for Students** (credit 88$). Provizionare prin `az cli`:
+- Subscriptia are o politica ce restrictioneaza regiunile disponibile la un set fix (`polandcentral`, `spaincentral`, `switzerlandnorth`, `germanywestcentral`, `italynorth`) - vizibila prin `az policy assignment list`, nu prin mesajul de eroare generic al `az vm create`. Ales `polandcentral` (cel mai apropiat geografic).
+- `Standard_B2s` (marimea plănuita initial) nu are capacitate disponibila in `polandcentral` - folosit `Standard_B2s_v2` in schimb (2 vCPU / 8GB RAM, disponibil fara restrictii, chiar mai generos decat targetul initial).
+- VM Ubuntu 22.04, Docker instalat prin scriptul oficial (`get.docker.com`), proiectul copiat prin `rsync` (nu `git clone` - deployment-ul Docker a fost testat/verificat inainte sa fie comis in git).
+- Porturi deschise in NSG: `8080` (Gateway, aplicatia), `8761` (Eureka), `3000` (Grafana), `9090` (Prometheus), `9411` (Zipkin), `15672` (RabbitMQ management) - expuse doar pentru durata demo-urilor, nu permanent.
+
+**Pentru a economisi creditul**, VM-ul ramane oprit (`az vm deallocate`) in afara demo-urilor/prezentarii:
+```bash
+# oprire (opreste facturarea de compute; storage-ul continua sa coste minim)
+az vm deallocate --resource-group awbd-pos-rg --name awbd-pos-vm
+
+# pornire inainte de o demonstratie
+az vm start --resource-group awbd-pos-rg --name awbd-pos-vm
+
+# IP-ul public e Static (SKU Standard), deci ramane 74.248.120.248 si dupa restart
+
+# dupa pornire, pe VM
+ssh azureuser@<IP> "cd ~/awbd-pos && sudo docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d"
+```
 

@@ -22,6 +22,9 @@ import ro.facultate.pos.repository.CategorieRepository;
 import ro.facultate.pos.repository.ProdusRepository;
 import ro.facultate.pos.repository.PromotieRepository;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -107,6 +110,34 @@ public class ProdusService {
         log.debug("Stoc produs {} ajustat cu {} -> {}", produsId, req.getDelta(), saved.getStoc());
         notificaDacaStocEpuizat(saved);
         return saved;
+    }
+
+    /**
+     * Calculeaza pretul dupa reducere folosind cea mai mare promotie
+     * ACTIV activa chiar acum (interogare directa, niciodata cache-uita -
+     * "activ acum" tine de ceasul curent, nu de datele statice ale
+     * produsului, deci nu poate fi copleaseita in rezultatul @Cacheable
+     * al getAll/getById fara sa devina stale).
+     */
+    public BigDecimal calculeazaPretEfectiv(Produs produs) {
+        BigDecimal reducere = promotieRepository
+                .findReducereMaximaActiva(produs.getId(), LocalDateTime.now())
+                .orElse(BigDecimal.ZERO);
+
+        if (reducere.compareTo(BigDecimal.ZERO) <= 0) {
+            return produs.getPret();
+        }
+
+        BigDecimal factor = BigDecimal.ONE.subtract(reducere.divide(BigDecimal.valueOf(100)));
+        return produs.getPret().multiply(factor).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public void aplicaPretEfectiv(Produs produs) {
+        produs.setPretEfectiv(calculeazaPretEfectiv(produs));
+    }
+
+    public void aplicaPretEfectiv(List<Produs> produse) {
+        produse.forEach(this::aplicaPretEfectiv);
     }
 
     private void notificaDacaStocEpuizat(Produs produs) {

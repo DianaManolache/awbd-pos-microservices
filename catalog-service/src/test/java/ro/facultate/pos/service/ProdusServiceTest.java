@@ -18,6 +18,7 @@ import ro.facultate.pos.repository.ProdusRepository;
 import ro.facultate.pos.repository.PromotieRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -270,5 +271,47 @@ class ProdusServiceTest {
         produsService.ajusteazaStoc(1L, req);
 
         Mockito.verify(notificationEventPublisher, Mockito.never()).publishStocEpuizat(Mockito.any());
+    }
+
+    @Test
+    void calculeazaPretEfectiv_faraPromotieActiva_returneazaPretulDeBaza() {
+        Produs p = new Produs();
+        p.setId(1L);
+        p.setPret(BigDecimal.valueOf(10.00));
+
+        Mockito.when(promotieRepository.findReducereMaximaActiva(Mockito.eq(1L), Mockito.any(LocalDateTime.class)))
+                .thenReturn(Optional.empty());
+
+        BigDecimal result = produsService.calculeazaPretEfectiv(p);
+
+        assertEquals(0, BigDecimal.valueOf(10.00).compareTo(result));
+    }
+
+    @Test
+    void calculeazaPretEfectiv_cuPromotieActiva_aplicaReducerea() {
+        Produs p = new Produs();
+        p.setId(1L);
+        p.setPret(BigDecimal.valueOf(2.00));
+
+        Mockito.when(promotieRepository.findReducereMaximaActiva(Mockito.eq(1L), Mockito.any(LocalDateTime.class)))
+                .thenReturn(Optional.of(BigDecimal.valueOf(20)));
+
+        BigDecimal result = produsService.calculeazaPretEfectiv(p);
+
+        assertEquals(0, BigDecimal.valueOf(1.60).compareTo(result));
+    }
+
+    @Test
+    void aplicaPretEfectiv_seteazaCampulPeProdus() {
+        Produs p = new Produs();
+        p.setId(1L);
+        p.setPret(BigDecimal.valueOf(5.00));
+
+        Mockito.when(promotieRepository.findReducereMaximaActiva(Mockito.eq(1L), Mockito.any(LocalDateTime.class)))
+                .thenReturn(Optional.of(BigDecimal.valueOf(50)));
+
+        produsService.aplicaPretEfectiv(p);
+
+        assertEquals(0, BigDecimal.valueOf(2.50).compareTo(p.getPretEfectiv()));
     }
 }

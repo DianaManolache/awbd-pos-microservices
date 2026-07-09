@@ -48,7 +48,13 @@ public class SecurityConfig {
                         .tokenValiditySeconds(14 * 24 * 60 * 60)
                 )
                 .httpBasic(Customizer.withDefaults())
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+                // /logout e ignorat la CSRF fiindca butonul de logout apare in
+                // fragmentul de navigare comun tuturor serviciilor - cand e afisat
+                // pe o pagina din catalog-service/sales-service/notification-service
+                // (resource servere JWT stateless, fara CSRF), Thymeleaf nu are de
+                // unde sa injecteze un token CSRF valid pentru sesiunea din
+                // user-service, care e singurul care detine efectiv /logout.
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/logout"))
                 // Permite si autentificare stateless prin JWT (folosit de apelurile
                 // interne Sales -> User, care nu au sesiunea acestui serviciu) - fara
                 // sa afecteze autentificarea normala prin sesiune pentru cererile din

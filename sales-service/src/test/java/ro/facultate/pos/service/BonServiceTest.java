@@ -103,6 +103,33 @@ class BonServiceTest {
     }
 
     @Test
+    void addProdus_cuPromotieActiva_foloseastePretulEfectivRedus() {
+        Bon bon = new Bon();
+        bon.setId(1L);
+        bon.setStatus(BonStatus.OPEN);
+
+        Mockito.when(bonRepository.findById(1L)).thenReturn(Optional.of(bon));
+
+        ProdusResponse produs = new ProdusResponse();
+        produs.setId(2L);
+        produs.setNume("Nasturi");
+        produs.setPret(BigDecimal.valueOf(2.00));
+        produs.setPretEfectiv(BigDecimal.valueOf(1.60));
+        produs.setStoc(10);
+
+        Mockito.when(catalogClient.getProdus(2L)).thenReturn(produs);
+        Mockito.when(bonProdusRepository.save(Mockito.any(BonProdus.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AddBonProdusRequest req = new AddBonProdusRequest();
+        req.setProdusId(2L);
+        req.setCantitate(1);
+
+        BonProdus saved = bonService.addProdus(1L, req);
+
+        assertEquals(0, BigDecimal.valueOf(1.60).compareTo(saved.getPretUnitar()));
+    }
+
+    @Test
     void addProdus_shouldThrow_whenStockInsufficient() {
         Bon bon = new Bon();
         bon.setId(1L);
