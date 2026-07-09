@@ -8,6 +8,17 @@ spring:
     gateway:
       server:
         webflux:
+          # XForwardedHeadersFilter e activat implicit, dar bean-ul lui nu se
+          # creeaza deloc daca trusted-proxies e gol - Gateway-ul nostru e
+          # singurul punct de intrare public (nu exista alt proxy in fata
+          # lui), deci acceptam orice adresa ca sursa a request-ului original.
+          trusted-proxies: .*
+          x-forwarded:
+            enabled: true
+            host-enabled: true
+            port-enabled: true
+            proto-enabled: true
+            prefix-enabled: true
           default-filters:
             - name: RequestRateLimiter
               args:

@@ -1,0 +1,165 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dmanolache
+      POSTGRES_PASSWORD: dmanolache
+      POSTGRES_DB: catalog_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dmanolache"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongodb:
+    image: mongo:7
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  eureka-server:
+    build:
+      context: .
+      target: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  config-server:
+    build:
+      context: .
+      target: config-server
+    ports:
+      - "8888:8888"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx256m"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  catalog-service:
+    build:
+      context: .
+      target: catalog-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      config-server: { condition: service_healthy }
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx384m
+        -Dspring.config.import=optional:configserver:http://config-server:8888
+        -Deureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+        -Dspring.datasource.url=jdbc:postgresql://postgres:5432/catalog_db
+        -Dspring.data.redis.host=redis
+        -Dspring.rabbitmq.host=rabbitmq
+        -Dmanagement.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+
+  sales-service:
+    build:
+      context: .
+      target: sales-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      config-server: { condition: service_healthy }
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx384m
+        -Dspring.config.import=optional:configserver:http://config-server:8888
+        -Deureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+        -Dspring.datasource.url=jdbc:postgresql://postgres:5432/sales_db
+        -Dspring.rabbitmq.host=rabbitmq
+        -Dmanagement.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+
+  user-service:
+    build:
+      context: .
+      target: user-service
+    depends_on:
+      postgres: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      config-server: { condition: service_healthy }
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx384m
+        -Dspring.config.import=optional:configserver:http://config-server:8888
+        -Deureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+        -Dspring.datasource.url=jdbc:postgresql://postgres:5432/user_db
+        -Dmanagement.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+
+  notification-service:
+    build:
+      context: .
+      target: notification-service
+    depends_on:
+      mongodb: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      config-server: { condition: service_healthy }
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx320m
+        -Dspring.config.import=optional:configserver:http://config-server:8888
+        -Deureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+        -Dspring.data.mongodb.uri=mongodb://mongodb:27017/notification_db
+        -Dspring.rabbitmq.host=rabbitmq
+        -Dmanagement.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+
+  api-gateway:
+    build:
+      context: .
+      target: api-gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      eureka-server: { condition: service_healthy }
+      catalog-service: { condition: service_started }
+      sales-service: { condition: service_started }
+      user-service: { condition: service_started }
+      notification-service: { condition: service_started }
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx320m
+        -Deureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+        -Dmanagement.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+
+volumes:
+  pgdata:
+  mongodata:
