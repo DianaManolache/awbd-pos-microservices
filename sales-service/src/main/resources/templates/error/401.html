@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Neautentificat')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1>401 - Neautentificat</h1>
+    <p>Trebuie sa fii autentificat ca sa accesezi aceasta pagina.</p>
+    <a href="/login" class="btn btn-primary">Autentificare</a>
+</div>
+</body>
+</html>
