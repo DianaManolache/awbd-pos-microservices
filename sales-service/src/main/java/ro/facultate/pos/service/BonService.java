@@ -272,6 +272,10 @@ public class BonService {
             }
 
             List<BonProdus> lines = bonProdusRepository.findByBonId(bonId);
+            if (lines.isEmpty()) {
+                throw new BusinessException("Bonul nu are produse adaugate");
+            }
+
             BigDecimal total = BigDecimal.ZERO;
 
             for (BonProdus line : lines) {

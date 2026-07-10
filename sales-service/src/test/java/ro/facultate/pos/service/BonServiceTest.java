@@ -223,6 +223,24 @@ class BonServiceTest {
     }
 
     @Test
+    void payBon_faraProdusePeBon_aruncaBadRequest_nuSalveazaPlata() {
+        Bon bon = new Bon();
+        bon.setId(1L);
+        bon.setStatus(BonStatus.OPEN);
+
+        Mockito.when(bonRepository.findById(1L)).thenReturn(Optional.of(bon));
+        Mockito.when(bonProdusRepository.findByBonId(1L)).thenReturn(List.of());
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> bonService.payBon(1L, TipPlata.CASH));
+
+        assertEquals(400, ex.getStatusCode().value());
+        Mockito.verify(plataRepository, Mockito.never()).save(Mockito.any());
+        Mockito.verify(bonRepository, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
     void getAll_shouldReturnList() {
         Mockito.when(bonRepository.findAll()).thenReturn(List.of(new Bon()));
 
