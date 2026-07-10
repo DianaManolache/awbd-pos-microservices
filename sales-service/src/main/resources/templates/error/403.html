@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(title='Acces interzis')}"></head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+<div class="container">
+    <h1>403 - Acces interzis</h1>
+    <p>Nu ai permisiunile necesare pentru aceasta pagina.</p>
+    <a href="/" class="btn btn-primary">Inapoi la pagina principala</a>
+</div>
+</body>
+</html>
