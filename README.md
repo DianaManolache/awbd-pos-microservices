@@ -209,12 +209,16 @@ Acestea generează **400 / 404**, în funcție de caz.
 ---
 
 ## Excepții
-Aplicația folosește:
-- excepții custom de business
-- `try/catch` în service
-- transformarea excepțiilor în `ResponseStatusException`
+`catalog-service`, `sales-service` și `user-service` au fiecare propriul `GlobalExceptionHandler` (`@ControllerAdvice`, scopat pe pachetul `controller` - endpoint-urile REST), care prinde uniform:
+- `ResponseStatusException` → statusul HTTP exact aruncat (400/404/etc.), body `{"message": "..."}` cu mesajul de business
+- `MethodArgumentNotValidException` (validare `@Valid` esuata pe un request REST) → 400, `{"message": "Date invalide"}`
+- `Exception` (catch-all) → 500, `{"message": "A aparut o eroare interna neasteptata"}`
 
-Pentru claritate, mesajele de eroare sunt returnate către client.
+`sales-service` are si o excepție proprie de business, `BusinessException`, folosita in `BonService` pentru reguli care nu au un cod HTTP direct asociat (ex. "Bonul nu este OPEN", "Bonul nu are produse adaugate") - prinsa local si convertita in `ResponseStatusException(400, ...)` inainte sa ajunga la handler.
+
+Paginile web (Thymeleaf, pachetul `web`) nu sunt acoperite de acest handler (scopat explicit doar pe `controller`) - validarea acolo se face prin `BindingResult` (nu prin excepții aruncate), iar apelurile de service sunt înfășurate individual în `try/catch (ResponseStatusException e)` la nivel de controller, cu mesajul afișat ca flash message pe pagina redirectata. O excepție neasteptata (nu `ResponseStatusException`) pe partea web nu are un handler dedicat si cade pe Whitelabel Error Page default a Spring Boot, nu pe un mesaj prietenos - un gap cunoscut, nu (inca) reparat peste tot.
+
+Apelurile intre servicii (Sales↔Catalog) protejate de Resilience4j (`@CircuitBreaker`/`@Retry`) disting explicit erorile de business (400/404, retransmise neschimbate catre apelant) de defectiunile reale de infrastructura (convertite in 503 prin metoda de fallback) - vezi sectiunea Resilience4j de mai jos.
 
 ---
 
